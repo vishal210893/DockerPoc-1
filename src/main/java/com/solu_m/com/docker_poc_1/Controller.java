@@ -5,9 +5,7 @@ import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.management.Attribute;
 import java.io.BufferedReader;
@@ -97,6 +95,12 @@ public class Controller {
     @GetMapping(path = "/service")
     public String helloWorld() {
         return "Environment Name " + " - " + ENV_VALUE + " - " + hostName;
+    }
+
+    @PostMapping
+    public ResponseEntity<Object> parseDate(@RequestBody Dyc dyc) {
+        log.info(dyc.toString());
+        return ResponseEntity.ok().build();
     }
 
 }

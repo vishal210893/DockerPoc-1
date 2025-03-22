@@ -1,0 +1,6 @@
+resources:
+  - Deployment.yaml
+namePrefix: test-
+labels:
+  - pairs:
+      env: learn

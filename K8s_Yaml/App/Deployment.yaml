@@ -1,4 +1,5 @@
 # DEPLOYMENT.YAML
+# kc port-forward svc/ingress-nginx-controller 8080:80 -n ingress-nginx
 apiVersion: apps/v1
 kind: Deployment
 metadata:
