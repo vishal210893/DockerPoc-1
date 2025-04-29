@@ -81,22 +81,22 @@ log "========== Step 4: Apply Ingress =========="
 echo
 $KUBECTL apply -f "$K8S_INGRESS_MANIFEST_PATH"
 echo
-sleep 60
+sleep 30
 
 # 5 ▒▒▒ App manifests ▒▒▒
 log "========== Step 5: Apply Application =========="
 echo
 $KUBECTL apply -f "$K8S_APP_MANIFEST_FILE"
 echo
-sleep 30
+sleep 10
 
 # 6 ▒▒▒ Port-forward ▒▒▒
 log "========== Step 6: Port-forward =========="
 log "Forwarding $INGRESS_NAMESPACE/$INGRESS_SERVICE_NAME $REMOTE_PORT → localhost:$LOCAL_PORT"
 echo
+log "Visit: http://localhost:${LOCAL_PORT}/dockerpoc1/api/v1/version"
 $KUBECTL -n "$INGRESS_NAMESPACE" port-forward "svc/${INGRESS_SERVICE_NAME}" "${LOCAL_PORT}:${REMOTE_PORT}"
 
-log "Visit: http://localhost:${LOCAL_PORT}/dockerpoc1/ ..."
 
 # reaches here only after Ctrl-C
 echo
