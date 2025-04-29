@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: vishal210893/dockerpoc-1:20250430-004315   # <- bump tag in CI
+          image: vishal210893/dockerpoc-1:20250430-010529
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8005
@@ -28,26 +28,14 @@ spec:
             - containerPort: 5005
               name: debug
           env:
-            - name: ENV_VALUE
+            - name: env_value
               valueFrom:
                 secretKeyRef:
                   name: env-secret
-                  key: SECRET_VALUE
+                  key: SECRET-VALUE
           volumeMounts:
             - name: filestorage
               mountPath: /opt/file
-          livenessProbe:
-            httpGet:
-              path: /actuator/health           # update if different
-              port: http
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /actuator/health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 5
           resources:
             requests:
               cpu: 100m
@@ -121,8 +109,6 @@ metadata:
 provisioner: k8s.io/minikube-hostpath        # change for cloud CSI driver
 parameters:
   type: pd-ssd
-reclaimPolicy: Retain
-volumeBindingMode: Immediate
 ---
 
 ###########################
@@ -140,21 +126,23 @@ spec:
   resources:
     requests:
       storage: 1Gi
+---
 
-# ─── OPTIONAL: Static PV (commented out; dynamic PVC above is preferred) ─────
-#
-# apiVersion: v1
-# kind: PersistentVolume
-# metadata:
-#   name: pv-volume
-# spec:
-#   storageClassName: dockerpoc-sc
-#   capacity:
-#     storage: 1Gi
-#   accessModes: [ReadWriteMany]
-#   hostPath:
-#     path: /Users/viskumar/mountpath
-#   persistentVolumeReclaimPolicy: Retain
+###########################
+# 5 ─── PV
+###########################
+ apiVersion: v1
+ kind: PersistentVolume
+ metadata:
+   name: pv-volume
+ spec:
+   storageClassName: dockerpoc-sc
+   capacity:
+     storage: 1Gi
+   accessModes: [ReadWriteMany]
+   hostPath:
+     path: /Users/viskumar/mountpath
+   persistentVolumeReclaimPolicy: Retain
 ---
 
 ###########################
@@ -164,9 +152,9 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: env-secret
-type: Opaque
+type: generic
 stringData:
-  SECRET_VALUE: "minikube node from secret"
+  SECRET-VALUE: "minikube node from secret"
 ---
 
 ###########################

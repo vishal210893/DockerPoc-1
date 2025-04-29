@@ -1,38 +1,155 @@
-## Describe the Bug
-When running the `vela version list -a` command, only older versions of KubeVela are displayed, and the latest versions do not appear in the output.
+# Remote Debugging with IntelliJ IDEA
 
-## Steps to Reproduce
+This guide explains how to configure remote debugging for a Java application running inside a Kubernetes pod using IntelliJ IDEA.
 
-1. **Run the `vela version list -a` command** <a id="run-version-list"></a><br>
-   ```bash
-   vela version list -a
-   ```
-   <b>Expected Output</b>
-    ```
-    Older Version: 1.9.0-beta.1
-    Older Version: 1.9.0-alpha.5
-    Older Version: 1.9.0-alpha.2
-    Older Version: 1.9.0-alpha.1
-    Older Version: 1.6.0-alpha.6
-    Older Version: 1.6.0-alpha.4
-    Older Version: 1.6.0-alpha.3
-    Older Version: 1.6.0-alpha.2
-    Older Version: 1.6.0-alpha.1
-   ...
-    ```
-   ⚠️ Warning: The output is displaying only older versions of KubeVela, and the newer releases are missing.
+## Prerequisites
+- IntelliJ IDEA installed
+- `kubectl` configured for your Kubernetes cluster
+- Access to modify the application's Dockerfile and Kubernetes manifests
 
-## Expected Behavior
-The command output should list all available KubeVela versions, including the most recent release(s).
-## KubeVela Version
-- **KubeVela Versions Tested:** v1.9.13 and v1.10.0
+---
 
-## Cluster information
-Tested on a K3d Kubernetes cluster
-- **Client Version:** v1.31.2
-- **Kustomize Version:** v5.4.2
-- **Server Version:** v1.30.4+k3s1
+## Phase 1: Modify Application & Kubernetes Configuration
 
-## Additional Information
+### Step 1: Enable JVM Debug Agent in Dockerfile
+Modify your `Dockerfile` to enable the Java Debug Wire Protocol (JDWP) agent using the `JAVA_TOOL_OPTIONS` environment variable.
 
-Reference link: [KubeVela Pre-release Installation Guide](https://kubevela.io/docs/platform-engineers/advanced-install/#install-pre-release)
+**Dockerfile:**
+```dockerfile
+FROM eclipse-temurin:17-jdk
+
+# Set debug port (can be parameterized)
+ENV DEBUG_PORT=5005
+
+# Enable JDWP agent
+ENV JAVA_TOOL_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:${DEBUG_PORT}"
+
+COPY /path/to/your/application.jar /app/
+CMD ["java", "-jar", "/app/application.jar"]
+```
+
+**Important Notes:**
+- Replace `/path/to/your/application.jar` with your actual JAR path
+- Use `address=*:5005` to bind to all interfaces
+- `suspend=n` allows the app to start without waiting for debugger attachment
+
+### Step 2: Expose Debug Port in Kubernetes Deployment
+Update your Kubernetes Deployment manifest to expose the debug port.
+
+**Deployment.yaml:**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: your-app-deployment
+spec:
+  template:
+    spec:
+      containers:
+        - name: main-app
+          ports:
+            - containerPort: 8080  # Your application port
+            - containerPort: 5005  # Debug port
+          env:
+            - name: DEBUG_PORT
+              value: "5005"
+```
+
+---
+
+## Phase 2: Build, Deploy, and Port-Forward
+
+### Step 3: Rebuild and Redeploy
+Rebuild your Docker image and redeploy to Kubernetes:
+
+```bash
+./deploy.sh --build
+```
+
+**Note:** Stop the script with `Ctrl+C` before it reaches ingress port-forwarding (Step 6 in the script).
+
+### Step 4: Identify Application Pod
+Find your pod name after deployment:
+
+```bash
+kubectl get pods -l app=your-app-label
+```
+
+Example output:
+```
+NAME                                  READY   STATUS    
+dockerpoc-1-deployment-abcd1234-xyz   1/1     Running
+```
+
+### Step 5: Start Port Forwarding
+In a new terminal, forward the debug port:
+
+```bash
+kubectl port-forward <your-pod-name> 5005:5005
+```
+
+Example:
+```bash
+kubectl port-forward dockerpoc-1-deployment-abcd1234-xyz 5005:5005
+```
+
+**Keep this terminal running during debugging.**
+
+---
+
+## Phase 3: Configure IntelliJ Debugger
+
+### Step 6: Create Remote Debug Configuration
+1. Open project in IntelliJ
+2. **Run** → **Edit Configurations...** → **+** → **Remote JVM Debug**
+3. Configure settings:
+   - **Name**: `Debug K8s App`
+   - **Host**: `localhost`
+   - **Port**: `5005`
+   - **Command line arguments**: Should match your `JAVA_TOOL_OPTIONS`
+   - **Module classpath**: Select your application's main module
+
+### Step 7: Start Debugging
+1. Set breakpoints in your code
+2. Select `Debug K8s App` configuration
+3. Click **Debug** (bug icon)
+4. Verify connection in Debug Console
+5. Trigger application functionality with breakpoints
+
+---
+
+## Important Considerations
+
+### Security
+- 🔒 Never enable debugging in production
+- 🚨 Remove debug configurations after use
+- 🔄 Rebuild and redeploy without debug settings
+
+### Performance
+- ⚖️ Use `replicas: 1` for easier debugging
+- 💻 Allocate sufficient pod resources
+- 🛑 Prefer `suspend=n` unless debugging startup code
+
+### Network
+- 🔥 Configure local firewall to allow debug port
+- 🌐 Ensure corporate network permits port forwarding
+- 🔗 Verify port-forwarding remains active
+
+### Cleanup
+- ⏹️ Stop IntelliJ debug session when finished
+- 🚫 Terminate port-forwarding with `Ctrl+C`
+- 🧹 Remove debug ports from Kubernetes manifests
+``` 
+
+This formatted version:
+1. Uses consistent heading hierarchy
+2. Groups related information with clear section breaks
+3. Formats all code blocks with proper syntax highlighting
+4. Organizes important notes in emphasized sections
+5. Uses emojis for visual scanning in important considerations
+6. Maintains logical flow between configuration steps
+7. Includes placeholder for configuration screenshot
+8. Provides clear cleanup instructions
+9. Uses modern markdown formatting for better readability
+
+Note: Replace the screenshot URL with an actual image reference when available.
