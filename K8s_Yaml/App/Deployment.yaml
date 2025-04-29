@@ -1,26 +1,32 @@
-# DEPLOYMENT.YAML
-# kc port-forward svc/ingress-nginx-controller 8080:80 -n ingress-nginx
+###########################
+# 1 ─── Deployment
+###########################
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dockerpoc-1-deployment
+  name: dockerpoc-1
   labels:
-    canbeanykey: canbeanyvalue
+    app.kubernetes.io/name: dockerpoc-1
+    app.kubernetes.io/component: backend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      component: dockerpoc-1
+      app.kubernetes.io/name: dockerpoc-1
   template:
     metadata:
       labels:
-        component: dockerpoc-1
+        app.kubernetes.io/name: dockerpoc-1
     spec:
       containers:
-        - name: dockerpoc-1
-          image: vishal210893/dockerpoc-1:20250430-004315
+        - name: app
+          image: vishal210893/dockerpoc-1:20250430-010529
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8005
+              name: http
+            - containerPort: 5005
+              name: debug
           env:
             - name: env_value
               valueFrom:
@@ -28,92 +34,49 @@ spec:
                   name: env-secret
                   key: SECRET-VALUE
           volumeMounts:
-            - mountPath: /opt/file
-              name: filestorage
+            - name: filestorage
+              mountPath: /opt/file
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
       volumes:
         - name: filestorage
           persistentVolumeClaim:
             claimName: file-pvc
-
 ---
 
-# STORAGE CLASS
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: dockerpoc-sc
-provisioner: k8s.io/minikube-hostpath
-parameters:
-  type: pd-ssd
-
----
-
-# PV.YAML
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: pv-volume
-spec:
-  storageClassName: dockerpoc-sc
-  capacity:
-    storage: "1Gi"
-  accessModes:
-    - ReadWriteMany
-  hostPath:
-    path: /Users/viskumar/mountpath
-  persistentVolumeReclaimPolicy: Retain
-
----
-
-# PVC.YAML
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: file-pvc
-spec:
-  accessModes:
-    - ReadWriteMany
-  storageClassName: dockerpoc-sc
-  resources:
-    requests:
-      storage: 1Gi
-
----
-
-# SECRET.YAML
-apiVersion: v1
-kind: Secret
-metadata:
-  name: env-secret
-type: generic
-stringData:
-  SECRET-VALUE: "minikube node from secret"
-
----
-
-# CLUSTER-IP.YAML
+###########################
+# 2 ─── Service (ClusterIP)
+###########################
 apiVersion: v1
 kind: Service
 metadata:
-  name: dockerpoc-1-cluster-ip
+  name: dockerpoc-1
+  labels:
+    app.kubernetes.io/name: dockerpoc-1
 spec:
   type: ClusterIP
   selector:
-    component: dockerpoc-1
+    app.kubernetes.io/name: dockerpoc-1
   ports:
-    - port: 8008
-      targetPort: 8005
-
+    - name: http
+      port: 8008
+      targetPort: http
 ---
 
-# INGRESS.YAML
-# kc port-forward svc/ingress-nginx-controller 8080:80 -n ingress-nginx
+###########################
+# 3 ─── Ingress
+###########################
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ingress-service
+  name: dockerpoc-1
   annotations:
-    nginx.ingress.kubernetes.io/use-regex: 'true'
+    nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /$1
 spec:
   ingressClassName: nginx
@@ -124,30 +87,89 @@ spec:
             pathType: ImplementationSpecific
             backend:
               service:
-                name: dockerpoc-1-cluster-ip
+                name: dockerpoc-1
                 port:
-                  number: 8008
+                  name: http
           - path: /cloud/(.*)
             pathType: ImplementationSpecific
             backend:
               service:
-                name: cloudtest-cluster-ip
+                name: cloudtest
                 port:
                   number: 9015
-
-
 ---
 
-### NODE-PORT SERVICE
-#apiVersion: v1
-#kind: Service
-#metadata:
-#  name: dockerpoc-1-node-port
-#spec:
-#  type: NodePort
-#  ports:
-#    - port: 8006
-#      targetPort: 8005
-#      nodePort: 30080
-#  selector:
-#    component: dockerpoc-1
+###########################
+# 4 ─── StorageClass
+###########################
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: dockerpoc-sc
+provisioner: k8s.io/minikube-hostpath        # change for cloud CSI driver
+parameters:
+  type: pd-ssd
+---
+
+###########################
+# 5 ─── PersistentVolumeClaim
+###########################
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: file-pvc
+  labels:
+    app.kubernetes.io/name: dockerpoc-1
+spec:
+  accessModes: [ ReadWriteMany ]
+  storageClassName: dockerpoc-sc
+  resources:
+    requests:
+      storage: 1Gi
+---
+
+###########################
+# 5 ─── PV
+###########################
+ apiVersion: v1
+ kind: PersistentVolume
+ metadata:
+   name: pv-volume
+ spec:
+   storageClassName: dockerpoc-sc
+   capacity:
+     storage: 1Gi
+   accessModes: [ReadWriteMany]
+   hostPath:
+     path: /Users/viskumar/mountpath
+   persistentVolumeReclaimPolicy: Retain
+---
+
+###########################
+# 6 ─── Secret
+###########################
+apiVersion: v1
+kind: Secret
+metadata:
+  name: env-secret
+type: generic
+stringData:
+  SECRET-VALUE: "minikube node from secret"
+---
+
+###########################
+# 7 ─── (Optional) NodePort Service
+###########################
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: dockerpoc-1-nodeport
+# spec:
+#   type: NodePort
+#   selector:
+#     app.kubernetes.io/name: dockerpoc-1
+#   ports:
+#     - name: http
+#       port: 8006
+#       targetPort: http
+#       nodePort: 30080
