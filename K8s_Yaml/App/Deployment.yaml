@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: dockerpoc-1
-          image: vishal210893/dockerpoc-1:10
+          image: vishal210893/dockerpoc-1:20250430-002849
           ports:
             - containerPort: 8005
           env:

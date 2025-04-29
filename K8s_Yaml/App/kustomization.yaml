@@ -1,6 +1,7 @@
 resources:
   - Deployment.yaml
 namePrefix: test-
+namespace: java
 labels:
   - pairs:
       env: learn
