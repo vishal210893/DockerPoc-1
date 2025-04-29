@@ -94,7 +94,7 @@ sleep 10
 log "========== Step 6: Port-forward =========="
 log "Forwarding $INGRESS_NAMESPACE/$INGRESS_SERVICE_NAME $REMOTE_PORT → localhost:$LOCAL_PORT"
 echo
-log "Visit: http://localhost:${LOCAL_PORT}/dockerpoc1/api/v1/version"
+log "Visit: http://localhost:${LOCAL_PORT}/docker/dockerpoc1/api/v1/version"
 $KUBECTL -n "$INGRESS_NAMESPACE" port-forward "svc/${INGRESS_SERVICE_NAME}" "${LOCAL_PORT}:${REMOTE_PORT}"
 
 
