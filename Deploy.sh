@@ -79,9 +79,15 @@ fi
 # 4 ▒▒▒ Ingress ▒▒▒
 log "========== Step 4: Apply Ingress =========="
 echo
-$KUBECTL apply -f "$K8S_INGRESS_MANIFEST_PATH"
-echo
-sleep 60
+
+if $KUBECTL -n "$INGRESS_NAMESPACE" get svc "$INGRESS_SERVICE_NAME" &>/dev/null; then
+  log "Ingress controller '$INGRESS_SERVICE_NAME' already running in namespace '$INGRESS_NAMESPACE' — skipping apply"
+else
+  log "Ingress controller not found — applying ingress manifests"
+  $KUBECTL apply -f "$K8S_INGRESS_MANIFEST_PATH"
+  echo
+  sleep 60
+fi
 
 # 5 ▒▒▒ App manifests ▒▒▒
 log "========== Step 5: Apply Application =========="
