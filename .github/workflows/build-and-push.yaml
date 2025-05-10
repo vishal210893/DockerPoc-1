@@ -26,9 +26,7 @@ jobs:
 
       # Step 3: Maven build
       - name: Maven build
-        uses: apache/maven-action@v3
-        with:
-          arguments: install -q
+        run: mvn -q install
 
       # Step 4: Set up Docker
       - name: Log in to DockerHub
