@@ -26,7 +26,7 @@ jobs:
 
       # Step 3: Maven build
       - name: Maven build
-        uses: maven/actions@v4
+        uses: apache/maven-action@v3
         with:
           arguments: install -q
 
