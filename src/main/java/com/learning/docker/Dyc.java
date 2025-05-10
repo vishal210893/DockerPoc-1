@@ -1,4 +1,4 @@
-package com.solu_m.com.docker_poc_1;
+package com.learning.docker;
 
 import lombok.Data;
 import lombok.ToString;

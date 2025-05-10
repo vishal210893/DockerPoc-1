@@ -1,4 +1,4 @@
-package com.solu_m.com.docker_poc_1;
+package com.learning.docker;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
