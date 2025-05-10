@@ -35,14 +35,16 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Set image tag
+        run: echo "IMAGE=${DOCKER_IMAGE_BASE}:$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+
       # Step 5: Docker build and push
       - name: Build and push Docker image
-        run: |
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          IMAGE=${DOCKER_IMAGE_BASE}:${TIMESTAMP}
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-          docker build -t $IMAGE .
-          docker push $IMAGE
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}
 
       # Step 6: Patch Deployment YAML
       - name: Update Deployment YAML
