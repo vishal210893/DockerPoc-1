@@ -3,7 +3,7 @@ name: Build and Deploy
 on:
   push:
     branches:
-      - *
+      - learning/github-action
 
 jobs:
   build-and-deploy:
