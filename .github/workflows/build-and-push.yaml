@@ -10,7 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DOCKER_IMAGE_BASE: vishal210893/dockerpoc-1
+      USER: vishal210893
+      REPO_NAME: dockerpoc-1
+      DOCKER_IMAGE_BASE: ${USER}/${REPO_NAME}
 
     steps:
       # Step 1: Checkout the code
@@ -28,7 +30,7 @@ jobs:
       - name: Maven build
         run: mvn -q install
 
-      # Step 4: Set up Docker
+      # Step 4: Login to Docker and GHCR
       - name: Log in to DockerHub
         uses: docker/login-action@v2
         with:
@@ -43,8 +45,11 @@ jobs:
           username: ${{ secrets.GHCR_USER }}
           password: ${{ secrets.GHCR_PASSWORD }}
 
+      # Set Image Tag
       - name: Set image tag
-        run: echo "IMAGE=${DOCKER_IMAGE_BASE}:$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+        run: |
+          echo "DOCKER_IMAGE=${DOCKER_IMAGE_BASE}:$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+          echo "GHCR_IMAGE=${REPO_NAME}:$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
 
       # Step 5: Docker build and push
       - name: Build and push Docker image
@@ -58,8 +63,8 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.IMAGE }}
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}
+            ${{ env.DOCKER_IMAGE }}
+            ghcr.io/${{ github.repository_owner }}/${{ env.GHCR_IMAGE }}
 
       # Step 6: Patch Deployment YAML
       - name: Update Deployment YAML
