@@ -52,7 +52,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.IMAGE }}
+          tags: |
+            ${{ env.IMAGE }}
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}
 
       # Step 6: Patch Deployment YAML
       - name: Update Deployment YAML
