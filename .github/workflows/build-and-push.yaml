@@ -162,8 +162,9 @@ jobs:
       # 3.1 Debug job outputs
       - name: Debug job outputs
         run: |
+          echo "All outputs from docker-build-push:"
+          echo "${{ toJSON(needs.docker-build-push.outputs) }}"
           echo "→ IMAGE_TAG:    $IMAGE_TAG"
-          echo "→ DOCKER_IMAGE: $DOCKER_IMAGE"
 
       # 3.2 Checkout repository
       - name: Checkout code
