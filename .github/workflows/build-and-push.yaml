@@ -76,7 +76,8 @@ jobs:
 
       - name: Debug generated outputs
         run: |
-          echo "→ step DOCKER_IMAGE: ${{ steps.generate_tag.outputs.DOCKER_IMAGE_OUTPUT }}"
+          echo "${{ toJSON(needs.docker-build-push.outputs) }}"
+          echo "→ step DOCKER_IMAGE: ${{ steps.generate_tag.outputs.docker_image_output }}"
 
       # Step 9: Log in to DockerHub
       - name: Log in to DockerHub
