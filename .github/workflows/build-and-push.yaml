@@ -5,6 +5,9 @@ on:
     branches:
       - learning/github-action
 
+env:
+  DOCKER_HUB_USER: vishal210893 # Your Docker Hub username
+
 jobs:
   build-artifact:
     runs-on: ubuntu-latest
@@ -35,6 +38,7 @@ jobs:
 
       # Step 4.1: Upload the built JAR as an artifact
       - name: Upload JAR artifact
+        id: upload_jar
         uses: actions/upload-artifact@v4
         with:
           name: app-jar
@@ -44,54 +48,63 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-artifact
     env:
-      USER: vishal210893
       REPO_NAME: dockerpoc-1
       DOWNLOAD_IMAGE: false  # Set to 'true' to enable image download steps
+    outputs:
+      deployment_image_name: ${{ steps.generate_tags.outputs.DEPLOYMENT_IMAGE_NAME_WITH_TAG }}
     steps:
       # Step 1: Checkout the code from the repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 4.1: Download the built JAR artifact
+      # Step 2: Download the built JAR artifact
       - name: Download JAR artifact
         uses: actions/download-artifact@v4
         with:
           name: app-jar
           path: target
 
-      # Step 5: Log in to DockerHub
+      # Step 3: Log in to DockerHub
       - name: Log in to DockerHub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: docker.io
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Step 6: Log in to GitHub Container Registry (GHCR)
+      # Step 4: Log in to GitHub Container Registry (GHCR)
       - name: Login to GHCR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ secrets.GHCR_USER }}
           password: ${{ secrets.GHCR_PASSWORD }}
 
-      # Step 7: Set the Docker image tag
-      - name: Set image tag
+      # Step 5: Generate image tags (includes date and Git SHA for uniqueness)
+      - name: Generate image tags
+        id: generate_tags
         run: |
-          echo "DOCKER_IMAGE=${USER}/${REPO_NAME}:$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-          echo "GHCR_IMAGE=${REPO_NAME}:$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+          IMAGE_TAG_SUFFIX="$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}"
+          DOCKER_HUB_IMAGE="${{ env.DOCKER_HUB_USER }}/${{ env.REPO_NAME }}:${IMAGE_TAG_SUFFIX}"
+          GHCR_IMAGE="ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${IMAGE_TAG_SUFFIX}"
 
-      # Step 8: Set up QEMU for multi-platform builds
+          echo "DOCKER_HUB_IMAGE_WITH_TAG=${DOCKER_HUB_IMAGE}" >> $GITHUB_ENV
+          echo "GHCR_IMAGE_WITH_TAG=${GHCR_IMAGE}" >> $GITHUB_ENV
+          
+          # This is the image name that will be used in the Kubernetes deployment
+          echo "DEPLOYMENT_IMAGE_NAME_WITH_TAG=${DOCKER_HUB_IMAGE}" >> $GITHUB_OUTPUT
+
+      # Step 6: Set up QEMU for multi-platform builds
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # Step 9: Set up Docker Buildx for building images
+      # Step 7: Set up Docker Buildx for building images
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           driver-opts: image=moby/buildkit:master
 
-      # Step 10: Build and push Docker images to registries with caching
+      # Step 8: Build and push Docker images to registries with caching
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -103,53 +116,66 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.DOCKER_IMAGE }}
-            ghcr.io/${{ github.repository_owner }}/${{ env.GHCR_IMAGE }}
-          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}-buildcache
-          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}-buildcache,mode=max
+            ${{ env.DOCKER_HUB_IMAGE_WITH_TAG }}
+            ${{ env.GHCR_IMAGE_WITH_TAG }}
+          cache-from: type=registry,ref=${{ env.DOCKER_HUB_USER }}/${{ env.REPO_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKER_HUB_USER }}/${{ env.REPO_NAME }}:buildcache,mode=max
 
-      # Step 11: Save the built Docker image as a tar file (conditional)
+      # Step 9: Save the built Docker image as a tar file (conditional)
       - name: Save Docker image as tar
         if: env.DOWNLOAD_IMAGE == 'true'
         run: |
-          docker pull ${{ env.DOCKER_IMAGE }}
-          docker save ${{ env.DOCKER_IMAGE }} -o docker-image.tar
+          # Pull specific platform if needed, otherwise defaults to runner's arch
+          docker pull ${{ env.DOCKER_HUB_IMAGE_WITH_TAG }} --platform linux/amd64
+          docker save ${{ env.DOCKER_HUB_IMAGE_WITH_TAG }} -o ${{ env.REPO_NAME }}.tar
 
-      # Step 12: Upload the Docker image tar as an artifact (conditional)
+      # Step 10: Upload the Docker image tar as an artifact (conditional)
       - name: Upload Docker image artifact
         if: env.DOWNLOAD_IMAGE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: docker-image
-          path: docker-image.tar
+          path: ${{ env.REPO_NAME }}.tar
 
   update-deployment:
     runs-on: ubuntu-latest
     needs: docker-build-push
+    permissions:
+      contents: write # Required to push changes to the repository
     env:
-      USER: vishal210893
       REPO_NAME: dockerpoc-1
+      NEW_IMAGE_NAME: ${{ needs.docker-build-push.outputs.deployment_image_name }}
     steps:
-      # Step 1: Checkout the code from the repository
+      # Step 1: Checkout the code from the repository (with full history for rebase)
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      # Step 7: Set the Docker image tag (repeat to get the same tag as previous job)
-      - name: Set image tag
-        run: |
-          echo "DOCKER_IMAGE=${USER}/${REPO_NAME}:$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-
-      # Step 13: Update the Deployment YAML file with the new image tag
+      # Step 2: Update the Deployment YAML file with the new image tag
       - name: Update Deployment YAML
         run: |
-          sed -i'' -e "s|image: ${USER}/${REPO_NAME}:.*|image: ${DOCKER_IMAGE}|g" K8s_Yaml/App/Deployment.yaml
+          echo "Updating K8s deployment with image: ${{ env.NEW_IMAGE_NAME }}"
+          # Adjust the sed regex if your image line format in Deployment.yaml is different.
+          # This assumes "image: DOCKER_USER/REPO_NAME:some-old-tag"
+          sed -i'' -e "s|image: ${{ env.DOCKER_HUB_USER }}/${{ env.REPO_NAME }}:.*|image: ${{ env.NEW_IMAGE_NAME }}|g" K8s_Yaml/App/Deployment.yaml
+          echo "--- Updated K8s_Yaml/App/Deployment.yaml ---"
           cat K8s_Yaml/App/Deployment.yaml
+          echo "-------------------------------------------"
 
-      # Step 14: Commit and push the updated Deployment YAML file to the repository
+      # Step 3: Commit and push the updated Deployment YAML file to the repository
       - name: Commit and push changes
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions-bot@github.com"
           git add K8s_Yaml/App/Deployment.yaml
-          git commit -m "Updated Deployment image to $DOCKER_IMAGE"
-          git push origin ${{ github.ref_name }}
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit in Deployment.yaml."
+          else
+            git commit -m "Update Kubernetes deployment image to ${{ env.NEW_IMAGE_NAME }}"
+            # Pull with rebase before pushing to avoid conflicts if the branch was updated concurrently
+            git pull --rebase origin ${{ github.ref_name }}
+            git push origin ${{ github.ref_name }}
+          fi
