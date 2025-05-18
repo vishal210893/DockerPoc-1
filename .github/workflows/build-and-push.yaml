@@ -87,13 +87,26 @@ jobs:
           cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}
           cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }},mode=max
 
-      # Step 11: Update the Deployment YAML file with the new image tag
+      # Step 11: Save the built Docker image as a tar file
+      - name: Save Docker image as tar
+        run: |
+          docker pull ${{ env.DOCKER_IMAGE }}
+          docker save ${{ env.DOCKER_IMAGE }} -o docker-image.tar
+
+      # Step 12: Upload the Docker image tar as an artifact
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-image
+          path: docker-image.tar
+
+      # Step 13: Update the Deployment YAML file with the new image tag
       - name: Update Deployment YAML
         run: |
           sed -i'' -e "s|image: ${USER}/${REPO_NAME}:.*|image: ${DOCKER_IMAGE}|g" K8s_Yaml/App/Deployment.yaml
           cat K8s_Yaml/App/Deployment.yaml
 
-      # Step 12: Commit and push the updated Deployment YAML file to the repository
+      # Step 14: Commit and push the updated Deployment YAML file to the repository
       - name: Commit and push changes
         run: |
           git config --global user.name "GitHub Actions"
