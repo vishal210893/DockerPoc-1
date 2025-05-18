@@ -153,3 +153,41 @@ This formatted version:
 9. Uses modern markdown formatting for better readability
 
 Note: Replace the screenshot URL with an actual image reference when available.
+```
+---
+
+## 🚀 CI/CD Workflow: Build, Dockerize & Deploy
+
+This repository uses a multi-stage GitHub Actions workflow to automate building, containerizing, and updating your Kubernetes deployment.  
+Below is a step-by-step breakdown of the process:
+
+### 1️⃣ Build Java Artifact (`build-artifact` job)
+- **1.1 Checkout code:** Retrieves the latest source code from the repository.
+- **1.2 Set up Java:** Configures Java 17 environment using Temurin distribution.
+- **1.3 Cache Maven repository:** Speeds up builds by caching Maven dependencies.
+- **1.4 Build with Maven:** Compiles and packages the application JAR.
+- **1.5 Upload JAR:** Stores the built JAR as a workflow artifact for later jobs.
+
+### 2️⃣ Build & Push Docker Image (`docker-build-push` job)
+- **2.1 Checkout code:** Ensures Docker context is available.
+- **2.2 Download JAR:** Retrieves the JAR artifact from the previous job.
+- **2.3 Generate image tag:** Creates a unique image tag based on timestamp.
+- **2.4 Login to Docker Hub:** Authenticates to Docker Hub for image push.
+- **2.5 Login to GHCR:** Authenticates to GitHub Container Registry.
+- **2.6 Set up QEMU:** Enables multi-architecture builds.
+- **2.7 Set up Docker Buildx:** Prepares advanced Docker build features.
+- **2.8 Build & push image:** Builds and pushes the Docker image to both Docker Hub and GHCR.
+- **2.9 (Optional) Save image tar:** Saves the Docker image as a tarball if enabled.
+- **2.10 (Optional) Upload image artifact:** Uploads the tarball as a workflow artifact.
+
+### 3️⃣ Update Kubernetes Deployment (`update-deployment` job)
+- **3.1 Debug job outputs:** Prints image tag for traceability.
+- **3.2 Checkout code:** Prepares the repository for patching.
+- **3.3 Set Docker image:** Assembles the full image name with the generated tag.
+- **3.4 Patch Deployment YAML:** Updates the Kubernetes manifest with the new image.
+- **3.5 Commit and push:** Commits and pushes the updated manifest to the repository.
+
+---
+
+**Summary:**  
+This workflow ensures your application is built, containerized, and deployed with a consistent, traceable image tag—fully automated from code push to Kubernetes update.
