@@ -6,14 +6,8 @@ on:
       - learning/github-action
 
 jobs:
-  build-and-deploy:
+  build-artifact:
     runs-on: ubuntu-latest
-
-    env:
-      USER: vishal210893
-      REPO_NAME: dockerpoc-1
-      DOWNLOAD_IMAGE: false  # Set to 'true' to enable image download steps
-
     steps:
       # Step 1: Checkout the code from the repository
       - name: Checkout code
@@ -45,6 +39,25 @@ jobs:
         with:
           name: app-jar
           path: target/dockerpoc-1-spring-boot.jar
+
+  docker-build-push:
+    runs-on: ubuntu-latest
+    needs: build-artifact
+    env:
+      USER: vishal210893
+      REPO_NAME: dockerpoc-1
+      DOWNLOAD_IMAGE: false  # Set to 'true' to enable image download steps
+    steps:
+      # Step 1: Checkout the code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 4.1: Download the built JAR artifact
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target
 
       # Step 5: Log in to DockerHub
       - name: Log in to DockerHub
@@ -109,6 +122,22 @@ jobs:
         with:
           name: docker-image
           path: docker-image.tar
+
+  update-deployment:
+    runs-on: ubuntu-latest
+    needs: docker-build-push
+    env:
+      USER: vishal210893
+      REPO_NAME: dockerpoc-1
+    steps:
+      # Step 1: Checkout the code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 7: Set the Docker image tag (repeat to get the same tag as previous job)
+      - name: Set image tag
+        run: |
+          echo "DOCKER_IMAGE=${USER}/${REPO_NAME}:$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
 
       # Step 13: Update the Deployment YAML file with the new image tag
       - name: Update Deployment YAML
