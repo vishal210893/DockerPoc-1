@@ -6,7 +6,7 @@ on:
       - learning/github-action
 
 env:
-  DOCKER_HUB_USER: vishal210893 # Your Docker Hub username
+  USER: vishal210893
 
 jobs:
   build-artifact:
@@ -36,9 +36,8 @@ jobs:
       - name: Maven build
         run: mvn -q install
 
-      # Step 4.1: Upload the built JAR as an artifact
+      # Step 5: Upload the built JAR as an artifact
       - name: Upload JAR artifact
-        id: upload_jar
         uses: actions/upload-artifact@v4
         with:
           name: app-jar
@@ -49,22 +48,33 @@ jobs:
     needs: build-artifact
     env:
       REPO_NAME: dockerpoc-1
-      DOWNLOAD_IMAGE: false  # Set to 'true' to enable image download steps
+      DOWNLOAD_IMAGE: false
     outputs:
-      deployment_image_name: ${{ steps.generate_tags.outputs.DEPLOYMENT_IMAGE_NAME_WITH_TAG }}
+      image_tag: ${{ steps.generate_tag.outputs.IMAGE_TAG }}
+      docker_image: ${{ steps.generate_tag.outputs.DOCKER_IMAGE }}
     steps:
-      # Step 1: Checkout the code from the repository
+      # Step 6: Checkout the code from the repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Download the built JAR artifact
+      # Step 7: Download the built JAR artifact
       - name: Download JAR artifact
         uses: actions/download-artifact@v4
         with:
           name: app-jar
           path: target
 
-      # Step 3: Log in to DockerHub
+      # Step 8: Generate image tag (single source of truth)
+      - name: Generate image tag
+        id: generate_tag
+        run: |
+          IMAGE_TAG="$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}"
+          DOCKER_IMAGE="${USER}/${REPO_NAME}:${IMAGE_TAG}"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "DOCKER_IMAGE=$DOCKER_IMAGE" >> $GITHUB_OUTPUT
+          echo "DOCKER_IMAGE=$DOCKER_IMAGE" >> $GITHUB_ENV
+
+      # Step 9: Log in to DockerHub
       - name: Log in to DockerHub
         uses: docker/login-action@v3
         with:
@@ -72,7 +82,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Step 4: Log in to GitHub Container Registry (GHCR)
+      # Step 10: Log in to GitHub Container Registry (GHCR)
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -80,55 +90,17 @@ jobs:
           username: ${{ secrets.GHCR_USER }}
           password: ${{ secrets.GHCR_PASSWORD }}
 
-      # Step 5: Generate image tags (includes date and Git SHA for uniqueness)
-      - name: Generate image tags
-        id: generate_tags
-        run: |
-          set -e # Exit immediately if a command exits with a non-zero status.
-          set -x # Print commands and their arguments as they are executed.
-
-          IMAGE_TAG_SUFFIX="$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}"
-          echo "DEBUG: IMAGE_TAG_SUFFIX is '${IMAGE_TAG_SUFFIX}'"
-          echo "DEBUG: env.DOCKER_HUB_USER is '${{ env.DOCKER_HUB_USER }}'"
-          echo "DEBUG: env.REPO_NAME is '${{ env.REPO_NAME }}'"
-          
-          DOCKER_HUB_IMAGE="${{ env.DOCKER_HUB_USER }}/${{ env.REPO_NAME }}:${IMAGE_TAG_SUFFIX}"
-          echo "DEBUG: DOCKER_HUB_IMAGE is '${DOCKER_HUB_IMAGE}'"
-
-          GHCR_IMAGE="ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${IMAGE_TAG_SUFFIX}"
-          echo "DEBUG: GHCR_IMAGE is '${GHCR_IMAGE}'"
-
-          if [ -z "${DOCKER_HUB_IMAGE}" ]; then
-            echo "Error: DOCKER_HUB_IMAGE is empty before writing to GITHUB_OUTPUT!"
-            exit 1
-          fi
-          if [ -z "$GITHUB_OUTPUT" ]; then
-            echo "Error: GITHUB_OUTPUT environment variable is not set!"
-            exit 1
-          fi
-
-          echo "DOCKER_HUB_IMAGE_WITH_TAG=${DOCKER_HUB_IMAGE}" >> $GITHUB_ENV
-          echo "GHCR_IMAGE_WITH_TAG=${GHCR_IMAGE}" >> $GITHUB_ENV
-          
-          # This is the image name that will be used in the Kubernetes deployment
-          echo "DEPLOYMENT_IMAGE_NAME_WITH_TAG=${DOCKER_HUB_IMAGE}" >> $GITHUB_OUTPUT
-          
-          echo "DEBUG: Successfully wrote to GITHUB_OUTPUT: DEPLOYMENT_IMAGE_NAME_WITH_TAG=${DOCKER_HUB_IMAGE}"
-          echo "DEBUG: Content of GITHUB_OUTPUT file ($GITHUB_OUTPUT) after write:"
-          cat $GITHUB_OUTPUT
-          echo "--- End of GITHUB_OUTPUT content ---"
-
-      # Step 6: Set up QEMU for multi-platform builds
+      # Step 11: Set up QEMU for multi-platform builds
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # Step 7: Set up Docker Buildx for building images
+      # Step 12: Set up Docker Buildx for building images
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           driver-opts: image=moby/buildkit:master
 
-      # Step 8: Build and push Docker images to registries with caching
+      # Step 13: Build and push Docker images to registries with caching
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -140,95 +112,47 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.DOCKER_HUB_IMAGE_WITH_TAG }}
-            ${{ env.GHCR_IMAGE_WITH_TAG }}
-          cache-from: type=registry,ref=${{ env.DOCKER_HUB_USER }}/${{ env.REPO_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.DOCKER_HUB_USER }}/${{ env.REPO_NAME }}:buildcache,mode=max
+            ${{ env.DOCKER_IMAGE }}
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}-buildcache
+          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}-buildcache,mode=max
 
-      # Step 9: Save the built Docker image as a tar file (conditional)
+      # Step 14: Save the built Docker image as a tar file (conditional)
       - name: Save Docker image as tar
         if: env.DOWNLOAD_IMAGE == 'true'
         run: |
-          # Pull specific platform if needed, otherwise defaults to runner's arch
-          docker pull ${{ env.DOCKER_HUB_IMAGE_WITH_TAG }} --platform linux/amd64
-          docker save ${{ env.DOCKER_HUB_IMAGE_WITH_TAG }} -o ${{ env.REPO_NAME }}.tar
+          docker pull ${{ env.DOCKER_IMAGE }}
+          docker save ${{ env.DOCKER_IMAGE }} -o docker-image.tar
 
-      # Step 10: Upload the Docker image tar as an artifact (conditional)
+      # Step 15: Upload the Docker image tar as an artifact (conditional)
       - name: Upload Docker image artifact
         if: env.DOWNLOAD_IMAGE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: docker-image
-          path: ${{ env.REPO_NAME }}.tar
+          path: docker-image.tar
 
   update-deployment:
     runs-on: ubuntu-latest
     needs: docker-build-push
-    permissions:
-      contents: write # Required to push changes to the repository
     env:
-      REPO_NAME: dockerpoc-1 # This is fine, but could also be ${{ github.event.repository.name }}
-      # NEW_IMAGE_NAME will be set using the output from the previous job
+      REPO_NAME: dockerpoc-1
+      DOCKER_IMAGE: ${{ needs.docker-build-push.outputs.docker_image }}
     steps:
-      # Step 0: Debug received outputs
-      - name: Debug received outputs
-        env:
-          # Explicitly capture the output into an env var for easier debugging
-          RECEIVED_DEPLOYMENT_IMAGE_NAME: ${{ needs.docker-build-push.outputs.deployment_image_name }}
-        run: |
-          echo "DEBUG (update-deployment): Value of needs.docker-build-push.outputs.deployment_image_name is: '${{ needs.docker-build-push.outputs.deployment_image_name }}'"
-          echo "DEBUG (update-deployment): Value of env.NEW_IMAGE_NAME (from job env) is: '${{ env.NEW_IMAGE_NAME }}'" # This will be empty if not set directly in job's env block
-          echo "DEBUG (update-deployment): Value of env.RECEIVED_DEPLOYMENT_IMAGE_NAME is: '${RECEIVED_DEPLOYMENT_IMAGE_NAME}'"
-
-
-      # Step 1: Checkout the code from the repository (with full history for rebase)
+      # Step 16: Checkout the code from the repository
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      # Step 2: Update the Deployment YAML file with the new image tag
+      # Step 17: Update the Deployment YAML file with the new image tag
       - name: Update Deployment YAML
-        # Use the directly received output in this step for clarity
-        env:
-          ACTUAL_NEW_IMAGE_NAME: ${{ needs.docker-build-push.outputs.deployment_image_name }}
         run: |
-          set -x
-          if [ -z "${ACTUAL_NEW_IMAGE_NAME}" ]; then
-            echo "Error: ACTUAL_NEW_IMAGE_NAME is empty in Update Deployment YAML step. Aborting update."
-            # exit 1 # Optionally exit if it's critical
-            echo "Proceeding with potentially empty image name - this will likely cause issues."
-          fi
-          echo "Updating K8s deployment with image: '${ACTUAL_NEW_IMAGE_NAME}'"
-          # Adjust the sed regex if your image line format in Deployment.yaml is different.
-          # This assumes "image: DOCKER_USER/REPO_NAME:some-old-tag"
-          # Using a different delimiter for sed like '#' in case image names have '/'
-          sed -i'' -e "s#image: ${{ env.DOCKER_HUB_USER }}/${{ env.REPO_NAME }}:.*#image: ${ACTUAL_NEW_IMAGE_NAME}#g" K8s_Yaml/App/Deployment.yaml
-          echo "--- Updated K8s_Yaml/App/Deployment.yaml ---"
+          sed -i'' -e "s|image:.*|image: ${DOCKER_IMAGE}|g" K8s_Yaml/App/Deployment.yaml
           cat K8s_Yaml/App/Deployment.yaml
-          echo "-------------------------------------------"
 
-      # Step 3: Commit and push the updated Deployment YAML file to the repository
+      # Step 18: Commit and push the updated Deployment YAML file to the repository
       - name: Commit and push changes
-        env:
-          # Use the directly received output in this step for clarity
-          ACTUAL_NEW_IMAGE_NAME_FOR_COMMIT: ${{ needs.docker-build-push.outputs.deployment_image_name }}
         run: |
-          set -x
-          if [ -z "${ACTUAL_NEW_IMAGE_NAME_FOR_COMMIT}" ]; then
-            echo "Warning: ACTUAL_NEW_IMAGE_NAME_FOR_COMMIT is empty. Commit message will be affected."
-            # Consider how to handle this - maybe a default commit message or skip commit
-          fi
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions-bot@github.com"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
           git add K8s_Yaml/App/Deployment.yaml
-          
-          # Check if there are changes to commit
-          if git diff --staged --quiet; then
-            echo "No changes to commit in Deployment.yaml."
-          else
-            git commit -m "Update Kubernetes deployment image to ${ACTUAL_NEW_IMAGE_NAME_FOR_COMMIT:-<unknown_image>}" # Fallback for commit message
-            # Pull with rebase before pushing to avoid conflicts if the branch was updated concurrently
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin ${{ github.ref_name }}
-          fi
+          git commit -m "Updated Deployment image to $DOCKER_IMAGE"
+          git push origin ${{ github.ref_name }}
