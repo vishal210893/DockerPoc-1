@@ -70,7 +70,7 @@ jobs:
         with:
           driver-opts: image=moby/buildkit:master
 
-      # Step 10: Build and push Docker images to registries
+      # Step 10: Build and push Docker images to registries with caching
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -84,6 +84,8 @@ jobs:
           tags: |
             ${{ env.DOCKER_IMAGE }}
             ghcr.io/${{ github.repository_owner }}/${{ env.GHCR_IMAGE }}
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}
+          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }},mode=max
 
       # Step 11: Update the Deployment YAML file with the new image tag
       - name: Update Deployment YAML
