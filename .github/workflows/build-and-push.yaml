@@ -12,6 +12,7 @@ jobs:
     env:
       USER: vishal210893
       REPO_NAME: dockerpoc-1
+      DOWNLOAD_IMAGE: false  # Set to 'true' to enable image download steps
 
     steps:
       # Step 1: Checkout the code from the repository
@@ -37,6 +38,13 @@ jobs:
       # Step 4: Build the project using Maven
       - name: Maven build
         run: mvn -q install
+
+      # Step 4.1: Upload the built JAR as an artifact
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/dockerpoc-1-0.0.1-spring-boot.jar
 
       # Step 5: Log in to DockerHub
       - name: Log in to DockerHub
@@ -87,14 +95,16 @@ jobs:
           cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}-buildcache
           cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}-buildcache,mode=max
 
-      # Step 11: Save the built Docker image as a tar file
+      # Step 11: Save the built Docker image as a tar file (conditional)
       - name: Save Docker image as tar
+        if: env.DOWNLOAD_IMAGE == 'true'
         run: |
           docker pull ${{ env.DOCKER_IMAGE }}
           docker save ${{ env.DOCKER_IMAGE }} -o docker-image.tar
 
-      # Step 12: Upload the Docker image tar as an artifact
+      # Step 12: Upload the Docker image tar as an artifact (conditional)
       - name: Upload Docker image artifact
+        if: env.DOWNLOAD_IMAGE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: docker-image
