@@ -95,7 +95,7 @@ jobs:
 
       # Step 12: Upload the Docker image tar as an artifact
       - name: Upload Docker image artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: docker-image
           path: docker-image.tar
