@@ -73,11 +73,8 @@ jobs:
           echo "docker_image_output=$DOCKER_IMAGE" >> $GITHUB_OUTPUT
           echo "DOCKER_IMAGE_ENV=$DOCKER_IMAGE" >> $GITHUB_ENV
           echo "GHCR_IMAGE=${REPO_NAME}:${IMAGE_TAG}" >> $GITHUB_ENV
-
-      - name: Debug generated outputs
-        run: |
-          echo "${{ toJSON(needs.docker-build-push.outputs) }}"
-          echo "→ step DOCKER_IMAGE: ${{ steps.generate_tag.outputs.docker_image_output }}"
+        env:
+          GITHUB_ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 
       # Step 9: Log in to DockerHub
       - name: Log in to DockerHub
