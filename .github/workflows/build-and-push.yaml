@@ -44,7 +44,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-jar
-          path: target/dockerpoc-1-0.0.1-spring-boot.jar
+          path: target/dockerpoc-1-spring-boot.jar
 
       # Step 5: Log in to DockerHub
       - name: Log in to DockerHub
