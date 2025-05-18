@@ -117,6 +117,7 @@ jobs:
       # 2.8 Build & push Docker images
       - name: Build & push image
         uses: docker/build-push-action@v5
+        continue-on-error: true
         with:
           context: .
           file: Dockerfile
@@ -190,3 +191,15 @@ jobs:
           git add K8s_Yaml/App/Deployment.yaml
           git commit -m "chore: update deployment image → ${DOCKER_IMAGE}"
           git push origin ${{ github.ref_name }}
+
+
+
+  eport:
+    needs: [ build-artifact,docker-build-push,update-deployment ]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output information
+        run: |
+          echo "Something went wrong"
+          echo "${{ toJSON(github) }}"
