@@ -209,6 +209,7 @@ jobs:
 
 
 
+
   report:
     name: 📝 Report
     needs: [ build-artifact,docker-build-push,update-deployment ]
