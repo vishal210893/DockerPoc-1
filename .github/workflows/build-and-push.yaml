@@ -209,7 +209,7 @@ jobs:
 
 
 
-  eport:
+  report:
     needs: [ build-artifact,docker-build-push,update-deployment ]
     if: failure()
     runs-on: ubuntu-latest
