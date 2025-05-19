@@ -1,0 +1,438 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Employee Management API",
+    "description": "API for managing Employee records, including personal details, contact information, address, and skills.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Learning Docker Team",
+      "email": "dev@example.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8005/dockerpoc",
+      "description": "Local development server with context path"
+    },
+    {
+      "url": "/dockerpoc",
+      "description": "Relative path for deployed environments with context path"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Employee Management",
+      "description": "Operations related to managing employee records."
+    }
+  ],
+  "paths": {
+    "/api/employees": {
+      "get": {
+        "tags": [
+          "Employee Management"
+        ],
+        "summary": "Get all employees",
+        "description": "Retrieves a list of all employee records.",
+        "operationId": "getAllEmployees",
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved list of employees.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Employee"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Employee Management"
+        ],
+        "summary": "Create a new employee",
+        "description": "Creates a new employee record in the database.",
+        "operationId": "createEmployee",
+        "requestBody": {
+          "description": "Employee object to create.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Employee created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Employee"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (e.g., invalid employee data due to validation errors).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/employees/{id}": {
+      "get": {
+        "tags": [
+          "Employee Management"
+        ],
+        "summary": "Get employee by ID",
+        "description": "Retrieves a single employee record by its unique ID.",
+        "operationId": "getEmployeeById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the employee to retrieve",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved employee.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Employee"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Employee not found with the given ID."
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Employee Management"
+        ],
+        "summary": "Update an existing employee",
+        "description": "Updates an existing employee record identified by ID.",
+        "operationId": "updateEmployee",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the employee to update",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Employee object with updated details.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Employee updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Employee"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (e.g., invalid employee data due to validation errors).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Employee not found with the given ID."
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Employee Management"
+        ],
+        "summary": "Delete an employee",
+        "description": "Deletes an employee record by its unique ID.",
+        "operationId": "deleteEmployee",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the employee to delete",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Employee deleted successfully (No Content)."
+          },
+          "404": {
+            "description": "Employee not found with the given ID."
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Employee": {
+        "type": "object",
+        "description": "Represents an employee record.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unique identifier for the employee (auto-generated).",
+            "readOnly": true,
+            "example": 1
+          },
+          "firstName": {
+            "type": "string",
+            "description": "Employee's first name.",
+            "example": "John"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Employee's last name.",
+            "example": "Doe"
+          },
+          "address": {
+            "$ref": "#/components/schemas/Address",
+            "description": "Employee's address details."
+          },
+          "contactInfo": {
+            "$ref": "#/components/schemas/ContactInfo",
+            "description": "Employee's contact information."
+          },
+          "skills": {
+            "type": "array",
+            "description": "List of skills the employee possesses.",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Java",
+              "Spring Boot",
+              "SQL"
+            ]
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "address",
+          "contactInfo",
+          "skills"
+        ]
+      },
+      "EmployeeRequest": {
+        "type": "object",
+        "description": "Represents an employee record for creation or update (ID is not required).",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "description": "Employee's first name.",
+            "example": "John"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Employee's last name.",
+            "example": "Doe"
+          },
+          "address": {
+            "$ref": "#/components/schemas/Address",
+            "description": "Employee's address details."
+          },
+          "contactInfo": {
+            "$ref": "#/components/schemas/ContactInfo",
+            "description": "Employee's contact information."
+          },
+          "skills": {
+            "type": "array",
+            "description": "List of skills the employee possesses.",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Java",
+              "Spring Boot",
+              "SQL"
+            ]
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "address",
+          "contactInfo",
+          "skills"
+        ]
+      },
+      "Address": {
+        "type": "object",
+        "description": "Represents an employee's address.",
+        "properties": {
+          "street": {
+            "type": "string",
+            "description": "Street address.",
+            "example": "123 Main St"
+          },
+          "city": {
+            "type": "string",
+            "description": "City.",
+            "example": "Anytown"
+          },
+          "zipCode": {
+            "type": "string",
+            "description": "Zip or postal code.",
+            "example": "12345"
+          }
+        },
+        "required": [
+          "street",
+          "city",
+          "zipCode"
+        ]
+      },
+      "ContactInfo": {
+        "type": "object",
+        "description": "Represents an employee's contact information.",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Employee's email address.",
+            "example": "john.doe@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Employee's phone number.",
+            "example": "555-1234"
+          }
+        },
+        "required": [
+          "email",
+          "phone"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Generic error response structure.",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-10-27T10:30:00Z"
+          },
+          "status": {
+            "type": "integer",
+            "example": 500
+          },
+          "error": {
+            "type": "string",
+            "example": "Internal Server Error"
+          },
+          "message": {
+            "type": "string",
+            "example": "An unexpected error occurred."
+          },
+          "path": {
+            "type": "string",
+            "example": "/dockerpoc/api/employees/1"
+          }
+        }
+      }
+    }
+  }
+}

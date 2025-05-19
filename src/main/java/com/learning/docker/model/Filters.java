@@ -1,4 +1,4 @@
-package com.learning.docker;
+package com.learning.docker.model;
 
 import lombok.Builder;
 import lombok.Data;

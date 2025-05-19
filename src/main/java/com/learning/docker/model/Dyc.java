@@ -1,4 +1,4 @@
-package com.learning.docker;
+package com.learning.docker.model;
 
 import lombok.Data;
 import lombok.ToString;

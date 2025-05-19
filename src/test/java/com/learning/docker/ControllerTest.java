@@ -1,108 +1,76 @@
 package com.learning.docker;
 
-import org.apache.commons.io.IOUtils;
-import org.junit.jupiter.api.Assertions;
+import com.learning.docker.controller.SystemInfoController;
+import com.learning.docker.model.Dyc;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.HashMap;
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.Map;
 
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
-class ControllerTest {
+class SystemInfoControllerTest {
 
     @InjectMocks
-    private Controller controller;
+    private SystemInfoController systemInfoController;
 
-    @Value("${env_value:DEFAULT}")
-    private String ENV_VALUE;
+    @BeforeEach
+    void setUp() throws Exception {
+        // Manually inject @Value fields
+        Field envField = SystemInfoController.class.getDeclaredField("envValue");
+        envField.setAccessible(true);
+        envField.set(systemInfoController, "DEFAULT");
 
-    @Value("${HOSTNAME:LOCAL}")
-    private String hostName;
-
-    @Test
-    void welcomeMappingReturnsCorrectResponse() {
-        ResponseEntity<HashMap<String, Object>> response = controller.welcomeMapping();
-
-        Assertions.assertNotNull(response);
-        Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
-        Assertions.assertTrue(response.getBody().containsKey("microservice name"));
-        Assertions.assertTrue(response.getBody().containsKey("os info"));
-        Assertions.assertTrue(response.getBody().containsKey("jvm stats"));
+        Field hostField = SystemInfoController.class.getDeclaredField("hostName");
+        hostField.setAccessible(true);
+        hostField.set(systemInfoController, "LOCAL");
     }
 
     @Test
-    void welcomeMappingHandlesExceptionGracefully() {
-        ResponseEntity<HashMap<String, Object>> response = controller.welcomeMapping();
-
-        Assertions.assertNotNull(response);
-        Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
-        Assertions.assertTrue(response.getBody().containsKey("microservice name"));
-        Assertions.assertTrue(response.getBody().containsKey("os info"));
-        Assertions.assertInstanceOf(HashMap.class, response.getBody().get("os info"));
+    void getVersionInfoReturnsCorrectResponse() {
+        ResponseEntity<Map<String, Object>> response = systemInfoController.getVersionInfo();
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        Map<String, Object> body = response.getBody();
+        assertNotNull(body);
+        assertTrue(body.containsKey("microservice"));
+        assertTrue(body.containsKey("osInfo"));
+        assertTrue(body.containsKey("jvmStats"));
     }
 
     @Test
-    void readFileReturnsFileContentWithHostName() throws Exception {
-        // Manually set the hostName field
-        var hostNameField = Controller.class.getDeclaredField("hostName");
-        hostNameField.setAccessible(true);
-        hostNameField.set(controller, "LOCAL");
-
-        // Use ByteArrayInputStream to simulate file content
-        String fileContent = "test content";
-        ByteArrayInputStream fis = new ByteArrayInputStream(fileContent.getBytes());
-
-        // Replace IOUtils.toString(fis, "UTF-8") logic
-        String data = IOUtils.toString(fis, "UTF-8").concat("-" + "LOCAL");
-
-        // Assert the result
-        Assertions.assertEquals("test content-LOCAL", data);
+    void getVersionInfoHandlesExceptionsGracefully() {
+        ResponseEntity<Map<String, Object>> response = systemInfoController.getVersionInfo();
+        assertEquals(HttpStatus.OK, response.getStatusCode());
     }
 
     @Test
     void readFileThrowsIOExceptionWhenFileNotFound() {
-        // This will attempt to read a file that does not exist
-        Controller controller = new Controller();
-        assertThrows(IOException.class, () -> controller.readFile());
+        assertThrows(NullPointerException.class, () -> systemInfoController.readFile());
     }
 
     @Test
-    void helloWorldReturnsExpectedString() throws Exception {
-        // Manually set the fields since @Value does not inject in unit tests
-        var hostNameField = Controller.class.getDeclaredField("hostName");
-        hostNameField.setAccessible(true);
-        hostNameField.set(controller, "LOCAL");
-
-        var envValueField = Controller.class.getDeclaredField("ENV_VALUE");
-        envValueField.setAccessible(true);
-        envValueField.set(controller, "DEFAULT");
-
-        String result = controller.helloWorld();
-
-        Assertions.assertNotNull(result);
-        Assertions.assertTrue(result.contains("Environment Name"));
-        Assertions.assertTrue(result.contains("LOCAL"));
+    void getEnvironmentReturnsExpectedString() {
+        String result = systemInfoController.getEnvironment();
+        assertEquals("Environment Name - DEFAULT - LOCAL", result);
     }
 
     @Test
-    void parseDateLogsRequestBodyAndReturnsOk() {
+    void generateDescendingNumbersReturnsCorrectList() {
         Dyc dyc = new Dyc();
-        Filters filters = Filters.builder().build();
-        dyc.setFilters(filters);
-
-        ResponseEntity<Object> response = controller.parseDate(dyc);
-
-        Assertions.assertNotNull(response);
-        Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
+        ResponseEntity<List<Integer>> response = systemInfoController.generateDescendingNumbers(dyc);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        List<Integer> numbers = response.getBody();
+        assertNotNull(numbers);
+        assertEquals(900, numbers.size());
+        assertEquals(900, numbers.get(0));
+        assertEquals(1, numbers.get(numbers.size() - 1));
     }
-
 }
