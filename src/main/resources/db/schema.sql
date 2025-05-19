@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS employee;
 -- Create Employee table
 CREATE TABLE employee
 (
-    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     first_name VARCHAR(255) NOT NULL,
     last_name  VARCHAR(255) NOT NULL,
     -- Embedded Address fields
