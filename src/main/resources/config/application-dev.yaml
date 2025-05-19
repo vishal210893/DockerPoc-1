@@ -25,6 +25,14 @@ spring:
       data-locations: classpath:db/data.sql
 
 
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    url: /doc/employee-swagger.json
+
 server:
   port: 8005
   ssl:
@@ -40,3 +48,4 @@ server:
 logging:
   level:
     root: info
+    org.springframework.jdbc.datasource.init: DEBUG

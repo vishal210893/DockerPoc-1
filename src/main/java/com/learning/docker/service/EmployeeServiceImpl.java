@@ -2,6 +2,7 @@ package com.learning.docker.service;
 
 import com.learning.docker.model.Employee;
 import com.learning.docker.repo.EmployeeRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,13 +14,10 @@ import java.util.Optional;
  */
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeRepository employeeRepository;
-
-    public EmployeeServiceImpl(EmployeeRepository employeeRepository) {
-        this.employeeRepository = employeeRepository;
-    }
 
     /**
      * {@inheritDoc}
