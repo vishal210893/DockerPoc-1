@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.stream.IntStream;
 
 @RestController
 @RequestMapping("api/v1")
@@ -100,7 +101,11 @@ public class Controller {
     @PostMapping
     public ResponseEntity<Object> parseDate(@RequestBody Dyc dyc) {
         log.info(dyc.toString());
-        return ResponseEntity.ok().build();
+        List<Integer> numbers = IntStream.rangeClosed(100, 999)
+                .boxed()
+                .sorted((a, b) -> Integer.compare(b, a))
+                .toList();
+        return ResponseEntity.ok(numbers);
     }
 
 }

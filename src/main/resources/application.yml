@@ -14,7 +14,7 @@ server:
     threads:
       max: 50
   servlet:
-    context-path: /dockerpoc1
+    context-path: /dockerpoc
 
 logging:
   level:
