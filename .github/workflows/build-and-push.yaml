@@ -20,6 +20,8 @@ jobs:
   build-artifact:
     name: 1️⃣ Build Java Artifact
     runs-on: ubuntu-latest
+    container:
+      image: maven:3.9.6-eclipse-temurin-17
     defaults:
       run:
         shell: bash
