@@ -6,7 +6,7 @@ spring:
     url: jdbc:postgresql://pg-1d9d15dc-vishal210893-5985.h.aivencloud.com:28832/employeedb?sslmode=require
     driverClassName: org.postgresql.Driver
     username: avnadmin
-    password: AVNS_LT5DsEKUPKfrHSHZHyB
+    password: ${db.password}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
