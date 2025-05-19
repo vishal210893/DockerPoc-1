@@ -1,0 +1,42 @@
+spring:
+  output:
+    ansi:
+      enabled: always
+  datasource:
+    url: jdbc:postgresql://pg-1d9d15dc-vishal210893-5985.h.aivencloud.com:28832/employeedb?sslmode=require
+    driverClassName: org.postgresql.Driver
+    username: avnadmin
+    password: ${db.password}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    defer-datasource-initialization: true
+  h2:
+    console:
+      enabled: false
+  sql:
+    init:
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
+
+
+server:
+  port: 8005
+  ssl:
+    enabled: false
+  tomcat:
+    max-connections: 50
+    connection-timeout: 10s
+    threads:
+      max: 50
+  servlet:
+    context-path: /dockerpoc
+
+logging:
+  level:
+    root: info
