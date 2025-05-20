@@ -1,4 +1,6 @@
 spring:
+  application:
+    name: DockerPoc
   output:
     ansi:
       enabled: always

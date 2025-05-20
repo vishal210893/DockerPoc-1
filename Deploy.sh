@@ -86,7 +86,7 @@ else
   log "Ingress controller not found — applying ingress manifests"
   $KUBECTL apply -f "$K8S_INGRESS_MANIFEST_PATH"
   echo
-  sleep 60
+  sleep 90
 fi
 
 # 5 ▒▒▒ App manifests ▒▒▒
@@ -100,7 +100,9 @@ sleep 30
 log "========== Step 6: Port-forward =========="
 log "Forwarding $INGRESS_NAMESPACE/$INGRESS_SERVICE_NAME $REMOTE_PORT → localhost:$LOCAL_PORT"
 echo
-log "Visit: http://localhost:${LOCAL_PORT}/docker/dockerpoc/api/v1/version"
+log "Visit: http://localhost:${LOCAL_PORT}/ingress/dockerpoc/api/v1/version"
+echo
+log "Swagger URL : http://localhost:${LOCAL_PORT}/ingress/dockerpoc/swagger-ui/index.html"
 $KUBECTL -n "$INGRESS_NAMESPACE" port-forward "svc/${INGRESS_SERVICE_NAME}" "${LOCAL_PORT}:${REMOTE_PORT}"
 
 
