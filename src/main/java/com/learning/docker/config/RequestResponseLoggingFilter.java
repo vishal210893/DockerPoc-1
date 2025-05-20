@@ -1,6 +1,7 @@
 package com.learning.docker.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,19 +15,25 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
-@Order(1) // Ensure it runs early, but after security filters if you have them and want to log post-auth
+@Order(1) // Ensure it runs early
 public class RequestResponseLoggingFilter implements Filter {
 
     private static final Logger log = LoggerFactory.getLogger(RequestResponseLoggingFilter.class);
-    private static final String REQUEST_PREFIX = "=> REQUEST: ";
-    private static final String RESPONSE_PREFIX = "<= RESPONSE: ";
     private static final int MAX_PAYLOAD_LENGTH = 10000; // Max characters of payload to log
+    private final ObjectMapper objectMapper;
+
+    public RequestResponseLoggingFilter() {
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.enable(SerializationFeature.INDENT_OUTPUT); // Enable pretty printing
+    }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain)
@@ -37,7 +44,8 @@ public class RequestResponseLoggingFilter implements Filter {
             return;
         }
 
-        // Wrap request and response to allow caching of their bodies
+        String logId = UUID.randomUUID().toString().substring(0, 8);
+
         ContentCachingRequestWrapper requestWrapper = new ContentCachingRequestWrapper(httpRequest);
         ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(httpResponse);
 
@@ -47,69 +55,75 @@ public class RequestResponseLoggingFilter implements Filter {
             filterChain.doFilter(requestWrapper, responseWrapper);
         } finally {
             long timeTaken = System.currentTimeMillis() - startTime;
-            logRequest(requestWrapper, timeTaken);
-            logResponse(responseWrapper);
-            // IMPORTANT: copy the cached response content to the original response's output stream
+            logRequest(requestWrapper, timeTaken, logId);
+            logResponse(responseWrapper, logId);
             responseWrapper.copyBodyToResponse();
         }
     }
 
-    private void logRequest(ContentCachingRequestWrapper request, long timeTaken) {
+    private void logRequest(ContentCachingRequestWrapper request, long timeTaken, String logId) {
         StringBuilder msg = new StringBuilder();
-        msg.append("\n------------------------- REQUEST START -------------------------\n");
-        msg.append(REQUEST_PREFIX).append("ID=").append(request.hashCode()).append("\n"); // Simple request ID
-        msg.append(REQUEST_PREFIX).append("Method      : ").append(request.getMethod()).append("\n");
-        msg.append(REQUEST_PREFIX).append("URI         : ").append(request.getRequestURI()).append("\n");
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        msg.append("\n╔═══════════════════════════ REQUEST START (ID: ").append(logId).append(") ═══════════════════════════╗\n");
+        msg.append(String.format("║ %-18s: %s\n", "Timestamp", timestamp));
+        msg.append(String.format("║ %-18s: %s\n", "Method", request.getMethod()));
+        msg.append(String.format("║ %-18s: %s\n", "URI", request.getRequestURI()));
         if (request.getQueryString() != null) {
-            msg.append(REQUEST_PREFIX).append("QueryString : ").append(request.getQueryString()).append("\n");
+            msg.append(String.format("║ %-18s: %s\n", "QueryString", request.getQueryString()));
         }
-        msg.append(REQUEST_PREFIX).append("Client IP   : ").append(request.getRemoteAddr()).append("\n");
-        msg.append(REQUEST_PREFIX).append("Headers     : ").append(getHeaders(request)).append("\n");
+        msg.append(String.format("║ %-18s: %s\n", "Client IP", request.getRemoteAddr()));
+
+        msg.append("║ Headers           :\n");
+        Enumeration<String> headerNames = request.getHeaderNames();
+        if (!headerNames.hasMoreElements()) {
+            msg.append("║                     [NONE]\n");
+        } else {
+            while (headerNames.hasMoreElements()) {
+                String headerName = headerNames.nextElement();
+                msg.append(String.format("║   %-15s: %s\n", headerName, request.getHeader(headerName)));
+            }
+        }
 
         byte[] content = request.getContentAsByteArray();
         if (content.length > 0) {
             String contentString = getContentString(content, request.getCharacterEncoding());
-            msg.append(REQUEST_PREFIX).append("Body        : \n").append(formatPayload(contentString)).append("\n");
+            msg.append("║ Body              :\n").append(indentMultiLine(formatPayload(contentString), "║   ")).append("\n");
+        } else {
+            msg.append(String.format("║ %-18s: %s\n", "Body", "[EMPTY]"));
         }
-        msg.append(REQUEST_PREFIX).append("Processed in: ").append(timeTaken).append(" ms\n");
-        msg.append("-------------------------- REQUEST END --------------------------\n");
+        msg.append(String.format("║ %-18s: %d ms\n", "Processing Time", timeTaken));
+        msg.append("╚════════════════════════════ REQUEST END (ID: ").append(logId).append(") ═════════════════════════════╝"); // No newline at the very end
         log.info(msg.toString());
     }
 
-    private void logResponse(ContentCachingResponseWrapper response) {
+    private void logResponse(ContentCachingResponseWrapper response, String logId) {
         StringBuilder msg = new StringBuilder();
-        msg.append("\n------------------------- RESPONSE START ------------------------\n");
-        msg.append(RESPONSE_PREFIX).append("ID=").append(response.hashCode()).append("\n"); // Simple response ID
-        msg.append(RESPONSE_PREFIX).append("Status  : ").append(response.getStatus()).append("\n");
-        msg.append(RESPONSE_PREFIX).append("Headers : ").append(getHeaders(response)).append("\n");
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        msg.append("\n╔═══════════════════════════ RESPONSE START (ID: ").append(logId).append(") ══════════════════════════╗\n");
+        msg.append(String.format("║ %-18s: %s\n", "Timestamp", timestamp));
+        msg.append(String.format("║ %-18s: %d\n", "Status", response.getStatus()));
+
+        msg.append("║ Headers           :\n");
+        Collection<String> headerNames = response.getHeaderNames();
+        if (headerNames.isEmpty()) {
+            msg.append("║                     [NONE]\n");
+        } else {
+            for (String headerName : headerNames) {
+                msg.append(String.format("║   %-15s: %s\n", headerName, response.getHeader(headerName)));
+            }
+        }
 
         byte[] content = response.getContentAsByteArray();
         if (content.length > 0) {
             String contentString = getContentString(content, response.getCharacterEncoding());
-            msg.append(RESPONSE_PREFIX).append("Body    : \n").append(formatPayload(contentString)).append("\n");
+            msg.append("║ Body              :\n").append(indentMultiLine(formatPayload(contentString), "║   ")).append("\n");
+        } else {
+            msg.append(String.format("║ %-18s: %s\n", "Body", "[EMPTY]"));
         }
-        msg.append("-------------------------- RESPONSE END --------------------------\n");
-
+        msg.append("╚═══════════════════════════ RESPONSE END (ID: ").append(logId).append(") ══════════════════════════╝"); // No newline at the very end
         log.info(msg.toString());
-    }
-
-    private String getHeaders(HttpServletRequest request) {
-        Map<String, String> headers = new HashMap<>();
-        Enumeration<String> headerNames = request.getHeaderNames();
-        while (headerNames.hasMoreElements()) {
-            String headerName = headerNames.nextElement();
-            headers.put(headerName, request.getHeader(headerName));
-        }
-        return headers.toString();
-    }
-
-    private String getHeaders(HttpServletResponse response) {
-        Map<String, String> headers = new HashMap<>();
-        Collection<String> headerNames = response.getHeaderNames();
-        for (String headerName : headerNames) {
-            headers.put(headerName, response.getHeader(headerName));
-        }
-        return headers.toString();
     }
 
     private String getContentString(byte[] content, String characterEncoding) {
@@ -128,18 +142,14 @@ public class RequestResponseLoggingFilter implements Filter {
         if (payload == null || payload.isEmpty()) {
             return "[EMPTY BODY]";
         }
-        // Basic pretty printing for JSON - you might want a more robust JSON library for complex formatting
-        if (payload.trim().startsWith("{") || payload.trim().startsWith("[")) {
+        String trimmedPayload = payload.trim();
+        if (trimmedPayload.startsWith("{") || trimmedPayload.startsWith("[")) {
             try {
-                // Attempt basic pretty print for JSON-like structures
-                // For robust pretty printing, consider using Jackson's ObjectMapper
-                ObjectMapper objectMapper = new ObjectMapper();
                 Object json = objectMapper.readValue(payload, Object.class);
-                return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(json);
-                // Simple indentation for now:
-                //return payload.replaceAll("(?m)^", "  "); // Indent each line
+                return objectMapper.writeValueAsString(json); // Already pretty-printed by ObjectMapper config
             } catch (Exception e) {
-                // Not valid JSON or other issue, log as is (truncated)
+                log.warn("Attempted to pretty print JSON but failed (payload might not be valid JSON or too complex). Error: {}. Logging as is (truncated).", e.getMessage());
+                // Fall through to truncate if not valid JSON
             }
         }
         return truncatePayload(payload);
@@ -150,5 +160,14 @@ public class RequestResponseLoggingFilter implements Filter {
             return payload.substring(0, MAX_PAYLOAD_LENGTH) + "... [TRUNCATED]";
         }
         return payload;
+    }
+
+    private String indentMultiLine(String text, String indentPrefix) {
+        if (text == null || text.isEmpty() || text.equals("[EMPTY BODY]")) {
+            return indentPrefix + text; // Avoid adding prefix to an already prefixed [EMPTY BODY]
+        }
+        return text.lines()
+                .map(line -> indentPrefix + line)
+                .collect(Collectors.joining("\n"));
     }
 }
