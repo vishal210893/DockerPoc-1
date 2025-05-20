@@ -22,7 +22,7 @@
                          and is generally not recommended for production environments.
             -->
             <pattern>
-                [%green(%d{yyyy-MM-dd HH:mm:ss.SSS})] %highlight(%-5level) %magenta([%thread]) %boldCyan(%logger) [%yellow(%M:%L)] : %msg%n%throwable
+                [%boldGreen(%d{yyyy-MM-dd HH:mm:ss.SSS})] %highlight(%-5level) %magenta([%thread]) %cyan(%logger) [%boldYellow(%M:%L)] : %msg%n%throwable
             </pattern>
         </encoder>
     </appender>
