@@ -42,7 +42,7 @@ EXPOSE ${DEBUG_PORT}
 
 # ─── JVM tuning & debug switch ───────────────────────────────────────────────
 ENV JAVA_TOOL_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:${DEBUG_PORT}" \
-    JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75"
+    JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -Dspring.profiles.active=prod -Ddb.password=AVNS_LT5DsEKUPKfrHSHZHyB"
 
 # ─── run ─────────────────────────────────────────────────────────────────────
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

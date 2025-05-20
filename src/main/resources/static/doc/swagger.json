@@ -11,6 +11,10 @@
   },
   "servers": [
     {
+      "url": "http://localhost:8080/ingress/dockerpoc",
+      "description": "Kubernetes ingress (prod profile)"
+    },
+    {
       "url": "http://localhost:8005/dockerpoc",
       "description": "Local development server with context path"
     },
