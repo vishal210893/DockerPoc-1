@@ -83,7 +83,7 @@ spec:
   rules:
     - http:
         paths:
-          - path: /docker/(.*)
+          - path: /ingress/(.*)
             pathType: ImplementationSpecific
             backend:
               service:
