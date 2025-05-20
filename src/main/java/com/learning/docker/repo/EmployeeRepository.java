@@ -1,6 +1,6 @@
 package com.learning.docker.repo;
 
-import com.learning.docker.model.Employee;
+import com.learning.docker.entity.Employee;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

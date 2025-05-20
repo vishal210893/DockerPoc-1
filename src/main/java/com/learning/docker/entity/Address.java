@@ -1,4 +1,4 @@
-package com.learning.docker.model;
+package com.learning.docker.entity;
 
 import jakarta.persistence.Embeddable;
 import jakarta.validation.constraints.NotBlank;

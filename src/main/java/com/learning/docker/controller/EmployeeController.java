@@ -1,6 +1,6 @@
 package com.learning.docker.controller;
 
-import com.learning.docker.model.Employee;
+import com.learning.docker.entity.Employee;
 import com.learning.docker.service.EmployeeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

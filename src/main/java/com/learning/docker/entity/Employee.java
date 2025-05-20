@@ -1,4 +1,4 @@
-package com.learning.docker.model;
+package com.learning.docker.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.Valid;

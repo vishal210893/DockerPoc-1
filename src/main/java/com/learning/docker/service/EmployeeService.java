@@ -1,6 +1,6 @@
 package com.learning.docker.service;
 
-import com.learning.docker.model.Employee;
+import com.learning.docker.entity.Employee;
 
 import java.util.List;
 import java.util.Optional;
