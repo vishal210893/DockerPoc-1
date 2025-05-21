@@ -1,6 +1,12 @@
 name: 'System & Git Repository Info'
-description: 'Prints detailed information about the runner OS and the Git repository in a formatted way.'
+description: 'Prints detailed information about the runner OS, Git repository, and optionally Java environment and directory structure.'
 author: 'Your Name/Org'
+
+inputs:
+  show_extended_info: # Renamed for clarity, was 'show_java_info'
+    description: 'Set to true to display Java information and directory tree.'
+    required: false
+    default: 'false' # Default to false
 
 runs:
   using: "composite"
@@ -59,5 +65,49 @@ runs:
         echo "  COMMIT MESSAGE:"
         git log -1 --pretty=%B | sed 's/^/    /'
         echo "========================================"
+        echo "::endgroup::"
+        echo ""
+
+    - name: Display Java and Directory Information (if enabled)
+      if: inputs.show_extended_info == 'true' # Condition to run this step
+      shell: bash
+      run: |
+        echo ""
+        echo "::group::☕ Java Environment & 📁 Directory Structure"
+        echo "======================================================"
+        echo "  JAVA DETAILS:"
+        if command -v java &> /dev/null; then
+          echo "    ▶ Version:"
+          java -version 2>&1 | sed 's/^/      --> /'
+          echo "    ▶ JAVA_HOME:    ${JAVA_HOME:-N/A (Not explicitly set or found)}"
+        else
+          echo "    ▶ Java not found in PATH."
+        fi
+        echo ""
+        echo "  DIRECTORY TREE (current workspace):"
+        if command -v tree &> /dev/null; then
+          tree -L 3 -a -I '.git|.m2|target|node_modules' . | sed 's/^/    /' || echo "    ▶ Tree command failed or directory is empty."
+        elif [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "    ▶ Using 'cmd /c tree /F /A' for Windows (basic):"
+          cmd /c tree /F /A . | sed 's/^/      /' || echo "    ▶ Tree command failed or directory is empty."
+        else
+          echo "    ▶ 'tree' command not found. Please install it on the runner for a detailed view."
+          echo "    ▶ Basic 'ls -R' (first 2 levels):"
+          ls -Rla | awk '
+            /:$/ {
+              if (level < 2) {
+                print "    " $0;
+                level++;
+                next;
+              }
+              level = 0; # Reset for next top-level dir if needed
+              nextfile=1;
+            }
+            nextfile {
+              if ($0 != "." && $0 != "..") print "      " $0;
+              nextfile=0;
+            }' || echo "    ▶ ls command failed."
+        fi
+        echo "======================================================"
         echo "::endgroup::"
         echo ""

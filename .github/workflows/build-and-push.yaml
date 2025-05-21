@@ -222,6 +222,8 @@ jobs:
       # 3.7 : Run your custom composite action
       - name: Display OS and Repository Details
         uses: ./.github/actions/composite
+        with:
+          show_extended_info: 'true'
 
   report:
     name: 📝 Report
