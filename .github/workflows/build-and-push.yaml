@@ -59,8 +59,18 @@ jobs:
           path: target/dockerpoc-1.jar
 
       # 1.6 : Run your custom composite action
-      - name: Display OS and Repository Details
+      - name: Display OS and Repository Details and Get Timestamp
+        id: system_info_action # Give an ID to this step to access its outputs
         uses: ./.github/actions/composite
+
+      # 1.7: Use the output from the composite action (step 1.6)
+      - name: Use Timestamp from Composite Action
+        run: |
+          echo "The timestamp from the composite action is: ${{ steps.system_info_action.outputs.formatted_run_timestamp }}"
+          # You can use this timestamp for other purposes, e.g., naming artifacts, logging, etc.
+          echo "Another example: creating a file with the timestamp"
+          echo "Action run at: ${{ steps.system_info_action.outputs.formatted_run_timestamp }}" > action_run_time.txt
+          cat action_run_time.txt
 
   docker-build-push:
     name: 2️⃣ Build & Push Docker Image
