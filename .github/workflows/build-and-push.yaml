@@ -169,6 +169,22 @@ jobs:
           name: docker-image
           path: docker-image.tar
 
+      # 2.11 : Run your new comprehensive JavaScript action
+      - name: Display System, OS, Git Info and Get Timestamp
+        id: comprehensive_info_action # Give an ID to this step
+        uses: ./.github/actions/javascript
+        with:
+          show_extended_info: 'true'
+
+      # 2.12: Use the output from the JavaScript action (step 1.6)
+      - name: Use Timestamp from Comprehensive JS Action
+        run: |
+          echo "The timestamp from the JS action is: ${{ steps.comprehensive_info_action.outputs.formatted_run_timestamp }}"
+          echo "Another example: creating a file with the timestamp"
+          echo "JS Action run at: ${{ steps.comprehensive_info_action.outputs.formatted_run_timestamp }}" > js_action_run_time.txt
+          cat js_action_run_time.txt
+
+
   update-deployment:
     name: 3️⃣ Update Kubernetes Deployment
     runs-on: ubuntu-latest
