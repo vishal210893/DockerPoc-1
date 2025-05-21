@@ -1,0 +1,38 @@
+# dockerpoc-chart/templates/NOTES.txt
+{{- define "dockerpoc-chart.notes" }}
+Your DockerPoc-1 application has been deployed.
+
+1. Get the application URL by running these commands:
+{{- if .Values.ingress.enabled }}
+  {{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}{{ (first .paths).path | replace "(.*)" "" }}
+  {{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "dockerpoc-chart.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+        You can watch the status of by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "dockerpoc-chart.fullname" . }}'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "dockerpoc-chart.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  echo http://$SERVICE_IP:{{ .Values.service.port }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "dockerpoc-chart.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  echo "Forwarding ClusterIP service to localhost:8080"
+  echo "  kubectl port-forward --namespace {{ .Release.Namespace }} $POD_NAME 8080:{{ .Values.containerPorts.http }}"
+  echo "Access the application at http://localhost:8080"
+{{- end }}
+
+{{- if .Values.persistence.enabled }}
+PersistentVolumeClaim {{ .Values.persistence.pvcName }} has been created.
+{{- if .Values.persistence.pv.enabled }}
+PersistentVolume {{ .Values.persistence.pv.name }} has been defined. Ensure the hostPath {{ .Values.persistence.pv.hostPath }} exists on your node(s).
+{{- end }}
+{{- end }}
+
+{{- if .Values.envSecret.create }}
+Secret {{ .Values.envSecret.name }} has been created with your specified value.
+{{- end }}
+{{- end }}
+
+{{- .Files.Get "templates/NOTES.txt" | replace "dockerpoc-chart.notes" (include "dockerpoc-chart.notes" .) }}
