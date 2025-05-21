@@ -11,7 +11,7 @@ on:
         required: false
         default: 'Manual execution'
 
-# Global environment
+# Global environment variables accessible in all jobs
 env:
   USER: vishal210893
   REPO_NAME: dockerpoc-1
@@ -21,25 +21,27 @@ jobs:
     name: 1️⃣ Build Java Artifact
     runs-on: ubuntu-latest
     container:
-      image: maven:3.9.6-eclipse-temurin-17
+      image: maven:3.9.6-eclipse-temurin-17 # Pinned version for consistent builds
     defaults:
       run:
         shell: bash
 
     steps:
-      # 1.1 Checkout source code
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      # 1.2 Set up Java 17
-      - name: Set up Java
-        uses: actions/setup-java@v3
+      # Checkout the repository code to the runner environment
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
-          distribution: temurin
+          fetch-depth: 0 # Fetch all history for git commands in custom actions
+
+      # Set up the specified Java version for the Maven build
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
           java-version: '17'
 
-      # 1.3 Cache local Maven repo
-      - name: Cache Maven repository
+      # Cache Maven dependencies to speed up subsequent builds
+      - name: Cache Maven Repository
         uses: actions/cache@v4
         with:
           path: ~/.m2/repository
@@ -47,70 +49,70 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      # 1.4 Build with Maven
-      - name: Maven build
-        run: mvn -q install
+      # Build the Java application using Maven
+      - name: Build with Maven
+        run: mvn -B -q install # -B for batch mode, -q for quiet
 
-      # 1.5 Upload JAR artifact
-      - name: Upload JAR
+      # Upload the built JAR file as a workflow artifact
+      - name: Upload JAR Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-jar
-          path: target/dockerpoc-1.jar
+          path: target/dockerpoc-1.jar # Ensure this path is correct
 
-      # 1.6 : Run your custom composite action
-      - name: Display OS and Repository Details and Get Timestamp
-        id: system_info_action # Give an ID to this step to access its outputs
-        uses: ./.github/actions/composite
+      # Run the custom JavaScript action to gather system and Git information
+      - name: Run System & Git Info Action
+        id: build_info_action # Unique ID for this step
+        uses: ./.github/actions/javascript # Using the comprehensive JS action
+        with:
+          show_extended_info: 'false' # Example: only basic info for this job
 
-      # 1.7: Use the output from the composite action (step 1.6)
-      - name: Use Timestamp from Composite Action
+      # Log the timestamp output from the custom info action
+      - name: Log Timestamp from Info Action
         run: |
-          echo "The timestamp from the composite action is: ${{ steps.system_info_action.outputs.formatted_run_timestamp }}"
-          # You can use this timestamp for other purposes, e.g., naming artifacts, logging, etc.
-          echo "Another example: creating a file with the timestamp"
-          echo "Action run at: ${{ steps.system_info_action.outputs.formatted_run_timestamp }}" > action_run_time.txt
-          cat action_run_time.txt
+          echo "Build Info Action Timestamp: ${{ steps.build_info_action.outputs.formatted_run_timestamp }}"
 
   docker-build-push:
     name: 2️⃣ Build & Push Docker Image
     runs-on: ubuntu-latest
-    needs: build-artifact
+    needs: build-artifact # This job depends on the successful completion of 'build-artifact'
     defaults:
       run:
         shell: bash
 
-    # Expose only the timestamp tag (avoid secret redaction)
     outputs:
-      image_tag: ${{ steps.tag.outputs.IMAGE_TAG }}
+      image_tag: ${{ steps.tag_generator.outputs.IMAGE_TAG }} # Output the generated image tag for use in other jobs
 
     env:
-      DOWNLOAD_IMAGE: false
+      DOWNLOAD_IMAGE: false # Control whether to download the built image as tar
 
     steps:
-      # 2.1 Checkout source code
-      - name: Checkout code
-        uses: actions/checkout@v3
+      # Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for git commands in custom actions
 
-      # 2.2 Download the JAR artifact
-      - name: Download JAR
+      # Download the JAR artifact built in the previous job
+      - name: Download JAR Artifact
         uses: actions/download-artifact@v4
         with:
           name: app-jar
-          path: target
+          path: target/
 
-      # 2.3 Generate timestamp tag
-      - name: Generate image tag
-        id: tag
+      # Generate a unique image tag based on the current timestamp
+      - name: Generate Image Tag
+        id: tag_generator # Clearer ID for referencing output
         run: |
-          IMAGE_TAG=$(date +%Y%m%d-%H%M%S)
-          echo "IMAGE_TAG=$IMAGE_TAG"                                             >> $GITHUB_OUTPUT
+          IMAGE_TAG_VALUE=$(date +%Y%m%d-%H%M%S)
+          echo "IMAGE_TAG=${IMAGE_TAG_VALUE}" >> $GITHUB_OUTPUT
+          echo "Generated IMAGE_TAG: ${IMAGE_TAG_VALUE}"
 
-          # Set for subsequent steps in this job
-          echo "DOCKER_IMAGE=${{ env.USER }}/${{ env.REPO_NAME }}:${IMAGE_TAG}"   >> $GITHUB_ENV
-          echo "GHCR_IMAGE=${{ env.REPO_NAME }}:${IMAGE_TAG}"                     >> $GITHUB_ENV
+          # Set full image names as environment variables for subsequent steps in this job
+          echo "DOCKER_IMAGE_WITH_TAG=${{ env.USER }}/${{ env.REPO_NAME }}:${IMAGE_TAG_VALUE}" >> $GITHUB_ENV
+          echo "GHCR_IMAGE_WITH_TAG=${{ env.REPO_NAME }}:${IMAGE_TAG_VALUE}" >> $GITHUB_ENV
 
-      # 2.4 Log in to Docker Hub
+      # Log in to Docker Hub using stored secrets
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -118,146 +120,205 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 2.5 Log in to GitHub Container Registry
-      - name: Login to GHCR
+      # Log in to GitHub Container Registry (GHCR)
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USER }}
-          password: ${{ secrets.GHCR_PASSWORD }}
+          username: ${{ secrets.GHCR_USER }} # Typically ${{ github.actor }} or a dedicated service account
+          password: ${{ secrets.GHCR_PASSWORD }} # Typically ${{ secrets.GITHUB_TOKEN }}
 
-      # 2.6 Set up QEMU for multi-arch
-      - name: Set up QEMU
+      # Set up QEMU for multi-architecture Docker builds (e.g., linux/amd64, linux/arm64)
+      - name: Set up QEMU for Multi-Arch Builds
         uses: docker/setup-qemu-action@v3
 
-      # 2.7 Set up Buildx
+      # Set up Docker Buildx, a CLI plugin for extended build capabilities
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
-          driver-opts: image=moby/buildkit:master
+          driver-opts: image=moby/buildkit:master # Using master for latest features, consider pinning if stability is paramount
 
-      # 2.8 Build & push Docker images
-      - name: Build & push image
+      # Build the Docker image and push it to Docker Hub and GHCR
+      - name: Build & Push Docker Image
         uses: docker/build-push-action@v5
-        continue-on-error: true
         with:
           context: .
-          file: Dockerfile
+          file: ./Dockerfile # Explicitly point to Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.DOCKER_IMAGE }}
-            ghcr.io/${{ github.repository_owner }}/${{ env.GHCR_IMAGE }}
+            ${{ env.DOCKER_IMAGE_WITH_TAG }}
+            ghcr.io/${{ github.repository_owner }}/${{ env.GHCR_IMAGE_WITH_TAG }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}-buildcache
-          cache-to:   type=registry,ref=${{ env.DOCKER_IMAGE }}-buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.USER }}/${{ env.REPO_NAME }}:buildcache # Consistent cache naming
+          cache-to: type=registry,ref=${{ env.USER }}/${{ env.REPO_NAME }}:buildcache,mode=max
 
-      # 2.9 (Optional) Save image to tar
-      - name: Save image tar
+      # Optionally save the built Docker image as a .tar file
+      - name: Save Image as Tar (Optional)
         if: env.DOWNLOAD_IMAGE == 'true'
         run: |
-          docker pull ${{ env.DOCKER_IMAGE }}
-          docker save ${{ env.DOCKER_IMAGE }} -o docker-image.tar
+          echo "Saving image ${{ env.DOCKER_IMAGE_WITH_TAG }} to tar..."
+          docker pull ${{ env.DOCKER_IMAGE_WITH_TAG }}
+          docker save ${{ env.DOCKER_IMAGE_WITH_TAG }} -o docker-image.tar
 
-      # 2.10 (Optional) Upload image tar
-      - name: Upload image artifact
+      # Optionally upload the .tar file as a workflow artifact
+      - name: Upload Image Tar as Artifact (Optional)
         if: env.DOWNLOAD_IMAGE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: docker-image
           path: docker-image.tar
 
-      # 2.11 : Run your new comprehensive JavaScript action
-      - name: Display System, OS, Git Info and Get Timestamp
-        id: comprehensive_info_action # Give an ID to this step
+      # Run the custom JavaScript action to gather system and Git information
+      - name: Run System & Git Info Action
+        id: docker_info_action # Unique ID
         uses: ./.github/actions/javascript
         with:
-          show_extended_info: 'true'
+          show_extended_info: 'true' # Show more details in this job
 
-      # 2.12: Use the output from the JavaScript action (step 1.6)
-      - name: Use Timestamp from Comprehensive JS Action
+      # Log the timestamp output from the custom info action
+      - name: Log Timestamp from Info Action
         run: |
-          echo "The timestamp from the JS action is: ${{ steps.comprehensive_info_action.outputs.formatted_run_timestamp }}"
-          echo "Another example: creating a file with the timestamp"
-          echo "JS Action run at: ${{ steps.comprehensive_info_action.outputs.formatted_run_timestamp }}" > js_action_run_time.txt
-          cat js_action_run_time.txt
-
+          echo "Docker Info Action Timestamp: ${{ steps.docker_info_action.outputs.formatted_run_timestamp }}"
 
   update-deployment:
     name: 3️⃣ Update Kubernetes Deployment
     runs-on: ubuntu-latest
-    needs: docker-build-push
+    needs: docker-build-push # This job depends on the successful completion of 'docker-build-push'
     defaults:
       run:
         shell: bash
 
-    # Reassemble full image name from non-secret bits
     env:
+      # Get the image tag from the 'docker-build-push' job's output
       IMAGE_TAG: ${{ needs.docker-build-push.outputs.image_tag }}
 
     steps:
-      # 3.1 Debug job outputs
-      - name: Debug job outputs
+      # Debug step to log the received IMAGE_TAG
+      - name: Debug Job Inputs
         run: |
-          echo "All outputs from docker-build-push:"
-          echo "${{ toJSON(needs.docker-build-push.outputs) }}"
-          echo "→ IMAGE_TAG:    $IMAGE_TAG"
-
-      # 3.2 Checkout repository
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      # 3.3: Set Docker image environment variable
-      - name: Set Docker image
-        run: |
-          echo "DOCKER_IMAGE=${USER}/${REPO_NAME}:${IMAGE_TAG}" >> $GITHUB_ENV
-          echo "Using image: ${DOCKER_IMAGE}"      
-
-      # 3.4 Update Deployment YAML
-      - name: Patch Deployment image
-        run: |
-          sed -i -e "s|image:.*|image: ${DOCKER_IMAGE}|g" K8s_Yaml/App/Deployment.yaml
-          cat   K8s_Yaml/App/Deployment.yaml
-
-      # 3.5 Verify image update
-      - name: Verify Deployment image update
-        run: |
-          IMAGE_LINE=$(grep 'image:' K8s_Yaml/App/Deployment.yaml | head -1 | awk '{print $2}')
-          if [[ -z "$IMAGE_LINE" ]]; then
-            echo "ERROR: Image value is empty!"
+          echo "Received IMAGE_TAG from 'docker-build-push' job: ${{ env.IMAGE_TAG }}"
+          if [[ -z "${{ env.IMAGE_TAG }}" ]]; then
+            echo "Error: IMAGE_TAG is empty. Check 'docker-build-push' job outputs."
             exit 1
           fi
-          if [[ "$IMAGE_LINE" != "${DOCKER_IMAGE}" ]]; then
-            echo "ERROR: Image value did not update correctly!"
-            echo "Expected: ${DOCKER_IMAGE}, Found: $IMAGE_LINE"
+
+      # Checkout the repository to access the Kubernetes YAML files
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # Token with write permissions is needed to push changes back to the repo.
+          # Consider using a PAT or a GitHub App token for more fine-grained permissions.
+          token: ${{ secrets.PAT_FOR_REPO_WRITE || secrets.GITHUB_TOKEN }}
+
+      # Construct the full Docker image name using the received tag
+      - name: Set Full Docker Image Name
+        id: image_setter
+        run: |
+          FULL_DOCKER_IMAGE="${{ env.USER }}/${{ env.REPO_NAME }}:${{ env.IMAGE_TAG }}"
+          echo "FULL_DOCKER_IMAGE=${FULL_DOCKER_IMAGE}" >> $GITHUB_ENV
+          echo "Updating Kubernetes deployment with image: ${FULL_DOCKER_IMAGE}"
+
+      # Patch the Kubernetes Deployment.yaml file with the new image
+      - name: Patch Kubernetes Deployment YAML
+        run: |
+          # Note: 'sed' for YAML manipulation can be brittle.
+          # Consider tools like 'yq' or 'kustomize' for more complex or robust updates.
+          DEPLOYMENT_FILE="K8s_Yaml/App/Deployment.yaml"
+          if [ ! -f "$DEPLOYMENT_FILE" ]; then
+            echo "Error: Deployment file not found at $DEPLOYMENT_FILE"
             exit 1
           fi
-          echo "Image value updated successfully: $IMAGE_LINE"
+          echo "Current image line(s) in $DEPLOYMENT_FILE:"
+          grep 'image:' "$DEPLOYMENT_FILE" || echo "No 'image:' line found."
 
-      # 3.6 Commit & push changes
-      - name: Commit and push
+          # Attempt to replace the image. This assumes a simple 'image: owner/repo:tag' structure.
+          sed -i -E "s|image:.*|image: ${{ env.FULL_DOCKER_IMAGE }}|g" "$DEPLOYMENT_FILE"
+
+          echo "Updated $DEPLOYMENT_FILE content:"
+          cat "$DEPLOYMENT_FILE"
+
+      # Verify that the image in the Deployment.yaml file was updated correctly
+      - name: Verify Deployment Image Update
         run: |
-          git config --global user.name  "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add K8s_Yaml/App/Deployment.yaml
-          git commit -m "chore: update deployment image → ${DOCKER_IMAGE}"
-          git push origin ${{ github.ref_name }}
+          DEPLOYMENT_FILE="K8s_Yaml/App/Deployment.yaml"
+          EXPECTED_IMAGE="${{ env.FULL_DOCKER_IMAGE }}"
+          # More robust check, handles potential leading/trailing spaces from sed
+          ACTUAL_IMAGE=$(grep 'image:' "$DEPLOYMENT_FILE" | head -1 | awk '{print $2}' | tr -d '[:space:]')
 
-      # 3.7 : Run your custom composite action
-      - name: Display OS and Repository Details
-        uses: ./.github/actions/composite
+          if [[ -z "$ACTUAL_IMAGE" ]]; then
+            echo "ERROR: Image value not found in $DEPLOYMENT_FILE after update!"
+            exit 1
+          fi
+          if [[ "$ACTUAL_IMAGE" != "$EXPECTED_IMAGE" ]]; then
+            echo "ERROR: Image value in $DEPLOYMENT_FILE did not update correctly!"
+            echo "Expected: $EXPECTED_IMAGE"
+            echo "Found   : $ACTUAL_IMAGE"
+            exit 1
+          fi
+          echo "Image value in $DEPLOYMENT_FILE updated successfully to: $ACTUAL_IMAGE"
+
+      # Commit and push the changes to Deployment.yaml back to the repository
+      - name: Commit and Push Deployment Changes
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions-bot@github.com" # Or a no-reply email
+
+          if [[ -z $(git status --porcelain K8s_Yaml/App/Deployment.yaml) ]]; then
+            echo "No changes to commit in K8s_Yaml/App/Deployment.yaml."
+          else
+            git add K8s_Yaml/App/Deployment.yaml
+            git commit -m "chore(deploy): Update Kubernetes deployment image to ${{ env.FULL_DOCKER_IMAGE }}"
+            # Ensure the branch name is correct, especially for PRs vs direct pushes
+            git push origin HEAD:${{ github.ref_name }}
+            echo "Committed and pushed deployment update."
+          fi
+
+      # Run the custom JavaScript action to gather system and Git information
+      - name: Run System & Git Info Action
+        id: deploy_info_action # Unique ID
+        uses: ./.github/actions/javascript
         with:
           show_extended_info: 'true'
 
-  report:
-    name: 📝 Report
-    needs: [ build-artifact,docker-build-push,update-deployment ]
-    if: failure()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Output information
+      # Log the timestamp output from the custom info action
+      - name: Log Timestamp from Info Action
         run: |
-          echo "Something went wrong"
-          echo "${{ toJSON(github) }}"
+          echo "Deploy Info Action Timestamp: ${{ steps.deploy_info_action.outputs.formatted_run_timestamp }}"
+
+  report-failure: # Renamed for clarity
+    name: 📝 Report Workflow Failure
+    runs-on: ubuntu-latest
+    needs: [build-artifact, docker-build-push, update-deployment] # Depends on all primary jobs
+    if: failure() # Only runs if any of the needed jobs fail
+
+    steps:
+      # Gather information about the workflow failure and output it to the job summary
+      - name: Gather Failure Information
+        run: |
+          echo "## Workflow Failure Report" >> $GITHUB_STEP_SUMMARY
+          echo "One or more jobs failed in the 'Build and Deploy' workflow." >> $GITHUB_STEP_SUMMARY
+          echo "Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "Triggered by: ${{ github.event_name }} by @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Job Statuses:" >> $GITHUB_STEP_SUMMARY
+          echo "* Build Artifact Job: \`${{ needs.build-artifact.result }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "* Docker Build & Push Job: \`${{ needs.docker-build-push.result }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "* Update Deployment Job: \`${{ needs.update-deployment.result }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "<details><summary>Full GitHub Context (for debugging)</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          echo "${{ toJSON(github) }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+
+          # For console log
+          echo "Workflow Failure Details:"
+          echo "  Run URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "  Commit: ${{ github.sha }}"
+          echo "  Build Artifact Job: ${{ needs.build-artifact.result }}"
+          echo "  Docker Build & Push Job: ${{ needs.docker-build-push.result }}"
+          echo "  Update Deployment Job: ${{ needs.update-deployment.result }}"
