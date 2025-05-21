@@ -58,6 +58,10 @@ jobs:
           name: app-jar
           path: target/dockerpoc-1.jar
 
+      # 1.6 : Run your custom composite action
+      - name: Display OS and Repository Details
+        uses: ./.github/actions/composite
+
   docker-build-push:
     name: 2️⃣ Build & Push Docker Image
     runs-on: ubuntu-latest
@@ -215,8 +219,9 @@ jobs:
           git commit -m "chore: update deployment image → ${DOCKER_IMAGE}"
           git push origin ${{ github.ref_name }}
 
-
-
+      # 3.7 : Run your custom composite action
+      - name: Display OS and Repository Details
+        uses: ./.github/actions/composite
 
   report:
     name: 📝 Report

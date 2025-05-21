@@ -1,0 +1,57 @@
+name: 'System & Git Repository Info'
+description: 'Prints detailed information about the runner OS and the Git repository in a formatted way.'
+author: 'Your Name/Org' # Optional: Add your name or organization
+
+runs:
+  using: "composite"
+  steps:
+    - name: Display Operating System Information
+      shell: bash
+      run: |
+        echo ""
+        echo "::group::🖥️ Operating System Details"
+        echo "========================================"
+        echo "  KERNEL INFO:    $(uname -a)"
+        echo "  ARCHITECTURE:   $(uname -m)"
+        echo "  RUNNER OS:      $RUNNER_OS"
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          if command -v lsb_release &> /dev/null; then
+            echo "  DISTRO (lsb_release):"
+            lsb_release -a 2>/dev/null | sed 's/^/    ▶ /' || echo "    ▶ N/A"
+          elif [ -f /etc/os-release ]; then
+            echo "  DISTRO (/etc/os-release):"
+            cat /etc/os-release | sed 's/^/    ▶ /' || echo "    ▶ N/A"
+          else
+            echo "  DISTRO INFO:    N/A (lsb_release & /etc/os-release not found)"
+          fi
+        elif [[ "$RUNNER_OS" == "macOS" ]]; then
+          echo "  MACOS VERSION:"
+          sw_vers | sed 's/^/    ▶ /'
+        elif [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "  WINDOWS DETAILS:"
+          powershell -Command "Get-ComputerInfo | Select-Object OsName, OsVersion, OsArchitecture, CsManufacturer, CsModel | Format-List" | sed 's/^/    ▶ /'
+        fi
+        echo "========================================"
+        echo "::endgroup::"
+        echo ""
+
+    - name: Display Git Repository Information
+      shell: bash
+      run: |
+        echo "::group::🌳 Git Repository Details"
+        echo "========================================"
+        echo "  REPOSITORY:       ${GITHUB_REPOSITORY}"
+        echo "  BRANCH:           ${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD)}"
+        echo "  COMMIT SHA:       ${GITHUB_SHA:-$(git rev-parse HEAD)}"
+        echo "  SHORT SHA:        $(echo ${GITHUB_SHA:-$(git rev-parse HEAD)} | cut -c1-7)"
+        echo "  AUTHOR:           $(git log -1 --pretty=format:'%an <%ae>')"
+        echo "  COMMIT DATE:      $(git log -1 --pretty=format:'%ad' --date='format:%Y-%m-%d %H:%M:%S %Z')"
+        echo "  REMOTE URL:       $(git remote get-url origin 2>/dev/null || echo 'N/A')"
+        TAGS_AT_HEAD=$(git tag --points-at HEAD | tr '\n' ',' | sed 's/,$//')
+        echo "  TAGS AT HEAD:     ${TAGS_AT_HEAD:-N/A}"
+        echo ""
+        echo "  COMMIT MESSAGE:"
+        git log -1 --pretty=%B | sed 's/^/    /'
+        echo "========================================"
+        echo "::endgroup::"
+        echo ""
