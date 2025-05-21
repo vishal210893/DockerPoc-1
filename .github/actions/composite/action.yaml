@@ -1,6 +1,6 @@
 name: 'System & Git Repository Info'
 description: 'Prints detailed information about the runner OS and the Git repository in a formatted way.'
-author: 'Your Name/Org' # Optional: Add your name or organization
+author: 'Your Name/Org'
 
 runs:
   using: "composite"
@@ -35,9 +35,15 @@ runs:
         echo "::endgroup::"
         echo ""
 
-    - name: Display Git Repository Information
+    - name: Configure Git Safe Directory and Display Repository Information
       shell: bash
       run: |
+        # Add the current workspace directory to Git's safe directories
+        # GITHUB_WORKSPACE is the root directory of the checkout
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        echo "✅ Added $GITHUB_WORKSPACE to git safe.directory"
+        echo ""
+
         echo "::group::🌳 Git Repository Details"
         echo "========================================"
         echo "  REPOSITORY:       ${GITHUB_REPOSITORY}"
