@@ -1,11 +1,10 @@
-.PHONY: deploy run k8s-clean
+.PHONY: deploy
 
 deploy:
 	k3d cluster delete vela; k3d cluster create vela; ./Deploy.sh --build
 
 run:
 	./Deploy.sh
-
 
 delete:
 	kubectl delete -f K8s_Yaml/App/Deployment.yaml --ignore-not-found
