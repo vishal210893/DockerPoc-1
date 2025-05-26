@@ -63,7 +63,7 @@ jobs:
       # Run the custom JavaScript action to gather system and Git information
       - name: Run System & Git Info Action
         id: build_info_action # Unique ID for this step
-        uses: ./.github/actions/javascript # Using the comprehensive JS action
+        uses:  vishal210893/PrintInfo-GA-JS@v1
         with:
           show_extended_info: 'false' # Example: only basic info for this job
 

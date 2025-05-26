@@ -2,5 +2,6 @@
 <project version="4">
   <component name="TerraformProjectSettings">
     <option name="formattedBeforeCommit" value="true" />
+    <option name="toolPath" value="/opt/homebrew/bin/terraform" />
   </component>
 </project>

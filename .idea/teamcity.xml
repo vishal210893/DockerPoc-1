@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="LinkedProjects">
+    <ProjectScope>
+      <Node id="CloudCommonServices_Platform_Atmos_AtmosOamLibrary" p="true" />
+      <Node id="CloudCommonServices_Platform_Atmos_Build_DeployScratchEnvironmentScratchAccount" />
+      <Node id="CloudCommonServices_Platform_Atmos_CleanupScratchGwreCcsScratch_DestroyEnvironment" />
+      <Node id="CloudCommonServices_Platform_Atmos_Crossplane" p="true" />
+      <Node id="CloudCommonServices_Platform_Atmos_CrossplaneProvidersBackup" p="true" />
+      <Node id="CloudCommonServices_Platform_Atmos_Kubevela" p="true" />
+      <Node id="CloudCommonServices_Platform_Atmos_OamCatalog" p="true" />
+      <Node id="CloudCommonServices_Platform_Housekeeping_GwreCcsScratch_ScaleUpScratch" />
+      <Node id="CloudCommonServices_Platform_Housekeeping_GwreCcsScratch_ScaleDownScratch" />
+    </ProjectScope>
+  </component>
+  <component name="LinkedServer">
+    <option name="serverUrl" value="https://gwre-devexp-ci-production-devci.gwre-devops.net" />
+  </component>
+</project>
