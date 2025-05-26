@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: vishal210893/dockerpoc-1:20250522-034810
+          image: vishal210893/dockerpoc-1:20250526-181924
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8005
