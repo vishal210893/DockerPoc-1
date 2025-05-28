@@ -124,3 +124,71 @@ public class IcebergReaderService {
     }
 }
 
+package com.example.iceberg.service;
+
+import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.Record;
+import org.apache.iceberg.aws.glue.GlueCatalog;
+import org.apache.iceberg.aws.AwsProperties;
+import org.apache.iceberg.aws.s3.S3FileIO;
+import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.io.FileIO;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.s3.S3Client;
+
+import java.io.IOException;
+import java.util.*;
+
+import org.springframework.stereotype.Service;
+
+@Service
+public class IcebergReaderService {
+
+    private static final String WAREHOUSE_PATH = "s3://your-bucket/iceberg/";
+
+    public List<Record> readTable(String database, String tableName) {
+        List<Record> records = new ArrayList<>();
+
+        // Use DefaultCredentialsProvider
+        var credentialsProvider = DefaultCredentialsProvider.create();
+
+        // Glue client
+        GlueClient glueClient = GlueClient.builder()
+                .credentialsProvider(credentialsProvider)
+                .build();
+
+        // S3 client
+        S3Client s3Client = S3Client.builder()
+                .credentialsProvider(credentialsProvider)
+                .build();
+
+        // S3FileIO using the S3Client
+        S3FileIO fileIO = new S3FileIO();
+        fileIO.initialize(Map.of(), s3Client);
+
+        // GlueCatalog with custom FileIO
+        GlueCatalog catalog = new GlueCatalog();
+        catalog.setGlueClient(glueClient);
+        catalog.setFileIO(fileIO);
+        catalog.initialize("glue", Map.of(
+                CatalogProperties.WAREHOUSE_LOCATION, WAREHOUSE_PATH
+        ));
+
+        TableIdentifier tableId = TableIdentifier.of(database, tableName);
+        Table table = catalog.loadTable(tableId);
+
+        try (CloseableIterable<Record> rows = IcebergGenerics.read(table).build()) {
+            rows.forEach(records::add);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read from Iceberg table", e);
+        }
+
+        return records;
+    }
+}
+
+
