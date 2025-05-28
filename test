@@ -1,0 +1,76 @@
+<dependencies>
+    <!-- Apache Iceberg Core -->
+    <dependency>
+        <groupId>org.apache.iceberg</groupId>
+        <artifactId>iceberg-core</artifactId>
+        <version>1.4.2</version> <!-- Use latest stable version -->
+    </dependency>
+
+    <!-- Iceberg AWS support -->
+    <dependency>
+        <groupId>org.apache.iceberg</groupId>
+        <artifactId>iceberg-aws</artifactId>
+        <version>1.4.2</version>
+    </dependency>
+
+    <!-- Apache Iceberg Hadoop support (needed for FileIO) -->
+    <dependency>
+        <groupId>org.apache.iceberg</groupId>
+        <artifactId>iceberg-hadoop</artifactId>
+        <version>1.4.2</version>
+    </dependency>
+
+    <!-- AWS SDK (optional, for AWS Glue or auth) -->
+    <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>s3</artifactId>
+        <version>2.25.0</version>
+    </dependency>
+</dependencies>
+
+
+package com.example.iceberg.service;
+
+import org.apache.iceberg.*;
+import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.hadoop.HadoopTables;
+import org.apache.iceberg.data.Record;
+import org.apache.iceberg.data.parquet.GenericParquetReaders;
+import org.apache.hadoop.conf.Configuration;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class IcebergReaderService {
+
+    private static final String WAREHOUSE_PATH = "s3a://your-bucket/iceberg/warehouse";
+
+    public List<Record> readTable(String database, String tableName) {
+        List<Record> records = new ArrayList<>();
+
+        Configuration hadoopConf = new Configuration();
+        hadoopConf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain");
+        hadoopConf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
+
+        // Use HadoopCatalog or GlueCatalog depending on setup
+        Catalog catalog = new HadoopCatalog(hadoopConf, WAREHOUSE_PATH);
+        TableIdentifier tableId = TableIdentifier.of(database, tableName);
+
+        Table table = catalog.loadTable(tableId);
+
+        try (CloseableIterable<Record> iterable = IcebergGenerics.read(table).build()) {
+            for (Record record : iterable) {
+                records.add(record);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read records from table: " + tableName, e);
+        }
+
+        return records;
+    }
+}
