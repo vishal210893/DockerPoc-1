@@ -74,3 +74,53 @@ public class IcebergReaderService {
         return records;
     }
 }
+
+package com.example.iceberg.service;
+
+import org.apache.iceberg.*;
+import org.apache.iceberg.aws.glue.GlueCatalog;
+import org.apache.iceberg.data.Record;
+import org.apache.iceberg.hadoop.HadoopFileIO;
+import org.apache.iceberg.io.CloseableIterable;
+import org.apache.hadoop.conf.Configuration;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class IcebergReaderService {
+
+    private static final String WAREHOUSE_PATH = "s3://your-bucket/iceberg/warehouse";
+
+    public List<Record> readTable(String database, String tableName) {
+        List<Record> records = new ArrayList<>();
+
+        Configuration hadoopConf = new Configuration();
+        hadoopConf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain");
+        hadoopConf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
+
+        // GlueCatalog setup
+        GlueCatalog catalog = new GlueCatalog();
+        catalog.setConf(hadoopConf);
+        catalog.initialize("glue", ImmutableMap.of(
+                "warehouse", WAREHOUSE_PATH,
+                "io-impl", HadoopFileIO.class.getName()
+        ));
+
+        TableIdentifier tableId = TableIdentifier.of(database, tableName);
+        Table table = catalog.loadTable(tableId);
+
+        try (CloseableIterable<Record> iterable = IcebergGenerics.read(table).build()) {
+            for (Record record : iterable) {
+                records.add(record);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read records from table: " + tableName, e);
+        }
+
+        return records;
+    }
+}
+
