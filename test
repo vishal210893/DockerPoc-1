@@ -192,3 +192,47 @@ public class IcebergReaderService {
 }
 
 
+
+
+
+List<Record> records = new ArrayList<>();
+
+        // Create a custom AWS Client Factory using DefaultCredentialsProvider
+        AwsClientFactory customClientFactory = new AwsClientFactory() {
+            private final DefaultCredentialsProvider creds = DefaultCredentialsProvider.create();
+
+            @Override
+            public S3Client s3() {
+                return S3Client.builder().credentialsProvider(creds).build();
+            }
+
+            @Override
+            public GlueClient glue() {
+                return GlueClient.builder().credentialsProvider(creds).build();
+            }
+        };
+
+        // Setup properties for GlueCatalog
+        Map<String, String> catalogProperties = new HashMap<>();
+        catalogProperties.put(CatalogProperties.WAREHOUSE_LOCATION, WAREHOUSE_PATH);
+        catalogProperties.put(CatalogProperties.FILE_IO_IMPL, S3FileIO.class.getName());
+        catalogProperties.put(AwsProperties.CLIENT_FACTORY, customClientFactory.getClass().getName());
+
+        // Register factory manually (since it's not loaded via ServiceLoader in this context)
+        AwsClientFactory.register(customClientFactory);
+
+        // Initialize GlueCatalog
+        GlueCatalog catalog = new GlueCatalog();
+        catalog.initialize("glue", catalogProperties);
+
+        TableIdentifier tableId = TableIdentifier.of(database, tableName);
+        Table table = catalog.loadTable(tableId);
+
+        try (CloseableIterable<Record> rows = IcebergGenerics.read(table).build()) {
+            rows.forEach(records::add);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read from Iceberg table", e);
+        }
+
+        return records;
+
