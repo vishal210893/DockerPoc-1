@@ -1,238 +1,500 @@
 <dependencies>
-    <!-- Apache Iceberg Core -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
     <dependency>
         <groupId>org.apache.iceberg</groupId>
         <artifactId>iceberg-core</artifactId>
-        <version>1.4.2</version> <!-- Use latest stable version -->
-    </dependency>
-
-    <!-- Iceberg AWS support -->
+        <version>1.5.0</version> </dependency>
     <dependency>
         <groupId>org.apache.iceberg</groupId>
         <artifactId>iceberg-aws</artifactId>
-        <version>1.4.2</version>
-    </dependency>
-
-    <!-- Apache Iceberg Hadoop support (needed for FileIO) -->
+        <version>1.5.0</version> </dependency>
     <dependency>
         <groupId>org.apache.iceberg</groupId>
-        <artifactId>iceberg-hadoop</artifactId>
-        <version>1.4.2</version>
+        <artifactId>iceberg-arrow</artifactId> <version>1.5.0</version>
     </dependency>
 
-    <!-- AWS SDK (optional, for AWS Glue or auth) -->
     <dependency>
         <groupId>software.amazon.awssdk</groupId>
         <artifactId>s3</artifactId>
-        <version>2.25.0</version>
+        </dependency>
+    <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>glue</artifactId>
+        </dependency>
+    <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>url-connection-client</artifactId>
+        </dependency>
+
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <optional>true</optional>
     </dependency>
 </dependencies>
 
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-dependencies</artifactId>
+            <version>3.2.5</version> <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>bom</artifactId>
+            <version>2.25.25</version> <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```java
+// src/main/java/com/example/icebergreader/config/IcebergAwsConfig.java
+package com.example.icebergreader.config;
 
-package com.example.iceberg.service;
-
-import org.apache.iceberg.*;
-import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.hadoop.HadoopCatalog;
-import org.apache.iceberg.hadoop.HadoopTables;
-import org.apache.iceberg.data.Record;
-import org.apache.iceberg.data.parquet.GenericParquetReaders;
-import org.apache.hadoop.conf.Configuration;
-import org.springframework.stereotype.Service;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-@Service
-public class IcebergReaderService {
-
-    private static final String WAREHOUSE_PATH = "s3a://your-bucket/iceberg/warehouse";
-
-    public List<Record> readTable(String database, String tableName) {
-        List<Record> records = new ArrayList<>();
-
-        Configuration hadoopConf = new Configuration();
-        hadoopConf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain");
-        hadoopConf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
-
-        // Use HadoopCatalog or GlueCatalog depending on setup
-        Catalog catalog = new HadoopCatalog(hadoopConf, WAREHOUSE_PATH);
-        TableIdentifier tableId = TableIdentifier.of(database, tableName);
-
-        Table table = catalog.loadTable(tableId);
-
-        try (CloseableIterable<Record> iterable = IcebergGenerics.read(table).build()) {
-            for (Record record : iterable) {
-                records.add(record);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to read records from table: " + tableName, e);
-        }
-
-        return records;
-    }
-}
-
-package com.example.iceberg.service;
-
-import org.apache.iceberg.*;
-import org.apache.iceberg.aws.glue.GlueCatalog;
-import org.apache.iceberg.data.Record;
-import org.apache.iceberg.hadoop.HadoopFileIO;
-import org.apache.iceberg.io.CloseableIterable;
-import org.apache.hadoop.conf.Configuration;
-import org.springframework.stereotype.Service;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-@Service
-public class IcebergReaderService {
-
-    private static final String WAREHOUSE_PATH = "s3://your-bucket/iceberg/warehouse";
-
-    public List<Record> readTable(String database, String tableName) {
-        List<Record> records = new ArrayList<>();
-
-        Configuration hadoopConf = new Configuration();
-        hadoopConf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain");
-        hadoopConf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
-
-        // GlueCatalog setup
-        GlueCatalog catalog = new GlueCatalog();
-        catalog.setConf(hadoopConf);
-        catalog.initialize("glue", ImmutableMap.of(
-                "warehouse", WAREHOUSE_PATH,
-                "io-impl", HadoopFileIO.class.getName()
-        ));
-
-        TableIdentifier tableId = TableIdentifier.of(database, tableName);
-        Table table = catalog.loadTable(tableId);
-
-        try (CloseableIterable<Record> iterable = IcebergGenerics.read(table).build()) {
-            for (Record record : iterable) {
-                records.add(record);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to read records from table: " + tableName, e);
-        }
-
-        return records;
-    }
-}
-
-package com.example.iceberg.service;
-
-import org.apache.iceberg.Table;
-import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.Record;
-import org.apache.iceberg.aws.glue.GlueCatalog;
-import org.apache.iceberg.aws.AwsProperties;
-import org.apache.iceberg.aws.s3.S3FileIO;
-import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.CatalogProperties;
-import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.aws.AwsProperties;
+import org.apache.iceberg.aws.glue.GlueCatalog;
+import org.apache.iceberg.catalog.Catalog;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.s3.S3Client;
 
-import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.springframework.stereotype.Service;
+@Configuration
+public class IcebergAwsConfig {
 
-@Service
-public class IcebergReaderService {
+    @Value("${iceberg.catalog.name:glue_catalog}") // Default catalog name
+    private String catalogName;
 
-    private static final String WAREHOUSE_PATH = "s3://your-bucket/iceberg/";
+    @Value("${iceberg.catalog.warehouse-path}") // e.g., s3://your-iceberg-warehouse-bucket/warehouse/
+    private String warehousePath;
 
-    public List<Record> readTable(String database, String tableName) {
-        List<Record> records = new ArrayList<>();
+    @Value("${aws.region}") // e.g., us-east-1
+    private String awsRegion;
 
-        // Use DefaultCredentialsProvider
-        var credentialsProvider = DefaultCredentialsProvider.create();
+    // Optional: if you need to lock Glue tables (e.g., for writes, less critical for reads)
+    @Value("${iceberg.catalog.glue.lock.table-name:iceberg_lock_table}")
+    private String glueLockTableName;
 
-        // Glue client
-        GlueClient glueClient = GlueClient.builder()
-                .credentialsProvider(credentialsProvider)
+    @Value("${iceberg.catalog.glue.lock.check-interval-ms:5000}")
+    private String glueLockCheckIntervalMs;
+
+    @Value("${iceberg.catalog.glue.lock.heartbeat-interval-ms:10000}")
+    private String glueLockHeartbeatIntervalMs;
+
+    /**
+     * Configures and provides an S3Client bean.
+     * This client will use the DefaultCredentialsProvider chain (environment variables,
+     * instance profile, ~/.aws/credentials, etc.) and the specified AWS region.
+     *
+     * @return Configured S3Client.
+     */
+    @Bean
+    public S3Client s3Client() {
+        return S3Client.builder()
+                .region(Region.of(awsRegion))
+                .credentialsProvider(DefaultCredentialsProvider.create())
+                .httpClientBuilder(UrlConnectionHttpClient.builder()) // You can use other HTTP clients like Apache or Netty
                 .build();
+    }
 
-        // S3 client
-        S3Client s3Client = S3Client.builder()
-                .credentialsProvider(credentialsProvider)
+    /**
+     * Configures and provides a GlueClient bean.
+     * This client will use the DefaultCredentialsProvider chain and the specified AWS region.
+     *
+     * @return Configured GlueClient.
+     */
+    @Bean
+    public GlueClient glueClient() {
+        return GlueClient.builder()
+                .region(Region.of(awsRegion))
+                .credentialsProvider(DefaultCredentialsProvider.create())
+                .httpClientBuilder(UrlConnectionHttpClient.builder())
                 .build();
+    }
 
-        // S3FileIO using the S3Client
-        S3FileIO fileIO = new S3FileIO();
-        fileIO.initialize(Map.of(), s3Client);
+    /**
+     * Configures and provides an Iceberg GlueCatalog bean.
+     * This catalog uses AWS Glue for metadata and S3 for data storage.
+     * It leverages the S3Client and GlueClient beans defined above.
+     *
+     * @param s3Client  The S3Client bean.
+     * @param glueClient The GlueClient bean.
+     * @return Configured GlueCatalog.
+     */
+    @Bean
+    public Catalog icebergCatalog(S3Client s3Client, GlueClient glueClient) {
+        GlueCatalog glueCatalog = new GlueCatalog();
 
-        // GlueCatalog with custom FileIO
-        GlueCatalog catalog = new GlueCatalog();
-        catalog.setGlueClient(glueClient);
-        catalog.setFileIO(fileIO);
-        catalog.initialize("glue", Map.of(
-                CatalogProperties.WAREHOUSE_LOCATION, WAREHOUSE_PATH
-        ));
+        Map<String, String> properties = new HashMap<>();
+        properties.put(CatalogProperties.WAREHOUSE_LOCATION, warehousePath);
+        properties.put(AwsProperties.S3FILEIO_IMPL, "org.apache.iceberg.aws.s3.S3FileIO");
+        // The GlueCatalog will use the provided S3Client and GlueClient by default if they are available
+        // in the Hadoop Configuration or if set via initialize methods.
+        // For more explicit control or if not using Hadoop Configuration context,
+        // you can pass client factories or set them directly if the catalog supports it.
+        // However, GlueCatalog is designed to discover and use these clients when configured with AwsProperties.
 
-        TableIdentifier tableId = TableIdentifier.of(database, tableName);
-        Table table = catalog.loadTable(tableId);
+        // For GlueCatalog, it's often simpler to let it instantiate clients internally
+        // based on AWS SDK defaults if you don't need fine-grained control over client instances here.
+        // Or, ensure they are passed correctly. The iceberg-aws module provides mechanisms for this.
+        // Here, we're relying on the fact that GlueCatalog can pick up default configurations
+        // or we can pass them if needed.
+        // Let's ensure it uses our configured clients by passing them during initialization.
+        // (Note: The standard GlueCatalog.initialize() takes a name and properties.
+        // Client injection is typically handled by its internal AWS client factory or Hadoop config.)
 
-        try (CloseableIterable<Record> rows = IcebergGenerics.read(table).build()) {
-            rows.forEach(records::add);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to read from Iceberg table", e);
-        }
+        // A common way is to set properties that iceberg-aws understands:
+        properties.put(AwsProperties.GLUE_CATALOG_ID, "your-aws-account-id"); // Optional: if not default
+        properties.put(AwsProperties.GLUE_LOCK_TABLE_NAME, glueLockTableName);
+        properties.put(AwsProperties.GLUE_LOCK_CHECK_INTERVAL_MS, glueLockCheckIntervalMs);
+        properties.put(AwsProperties.GLUE_LOCK_HEARTBEAT_INTERVAL_MS, glueLockHeartbeatIntervalMs);
+        // properties.put(AwsProperties.CLIENT_REGION, awsRegion); // Can also be set here
 
-        return records;
+        // Initialize the catalog
+        // The `s3Client` and `glueClient` beans are available in the Spring context.
+        // `GlueCatalog` will use `software.amazon.awssdk.services.glue.GlueClient.builder()`
+        // and `software.amazon.awssdk.services.s3.S3Client.builder()` by default,
+        // which will pick up the DefaultCredentialsProvider.
+        // If you need to ensure *these specific beans* are used, you might need a custom catalog
+        // initialization or ensure the Hadoop Configuration (if used implicitly by Iceberg) is configured.
+        // However, for basic default credential usage, this is often sufficient.
+        // The `iceberg-aws` module's `AwsClientFactory` handles client creation.
+        // We can pass our custom clients to the factory if needed, but for default credentials,
+        // the SDK's default behavior is usually what we want.
+
+        // Forcing specific client instances into GlueCatalog typically involves
+        // either a custom AwsClientFactory or if the catalog's `initialize` method
+        // or setters allow it. GlueCatalog's primary initialization is `initialize(name, properties)`.
+        // The `iceberg-aws` library will create clients using the AWS SDK's default mechanisms,
+        // which includes `DefaultCredentialsProvider.create()`. So, explicitly creating S3Client/GlueClient
+        // beans as above and having them in the context is good practice, but GlueCatalog might
+        // create its own instances unless specifically configured to use existing ones.
+        // However, since both our beans and Iceberg's internal creation will use DefaultCredentialsProvider,
+        // the outcome for credentials should be the same.
+
+        // To be absolutely sure our beans are used, one would typically implement a custom
+        // `org.apache.iceberg.aws.AwsClientFactory` and set it via `AwsProperties.CLIENT_FACTORY`.
+        // For simplicity and common use cases, relying on the default behavior of `iceberg-aws`
+        // with `DefaultCredentialsProvider` is standard.
+
+        glueCatalog.initialize(catalogName, properties);
+        // You can also provide custom S3FileIO if needed
+        // S3FileIO s3FileIO = new S3FileIO(() -> s3Client); // Pass the S3 client supplier
+        // glueCatalog.setFileIO(s3FileIO); // If GlueCatalog had such a setter (it doesn't directly, uses properties)
+
+        return glueCatalog;
     }
 }
+```java
+// src/main/java/com/example/icebergreader/model/DataRecord.java
+package com.example.icebergreader.model;
 
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
+import java.util.Map;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class DataRecord {
+    // Example fields - customize based on your Iceberg table schema
+    // If your schema is dynamic or you prefer a generic approach,
+    // you can use Map<String, Object> instead.
+    private Long id;
+    private String category;
+    private Double value;
+    private String timestamp;
 
+    // Or for a more generic approach:
+    private Map<String, Object> fields;
 
-List<Record> records = new ArrayList<>();
+    public DataRecord(Map<String, Object> fields) {
+        this.fields = fields;
+    }
+}
+```java
+// src/main/java/com/example/icebergreader/service/IcebergQueryService.java
+package com.example.icebergreader.service;
 
-        // Create a custom AWS Client Factory using DefaultCredentialsProvider
-        AwsClientFactory customClientFactory = new AwsClientFactory() {
-            private final DefaultCredentialsProvider creds = DefaultCredentialsProvider.create();
+import com.example.icebergreader.model.DataRecord;
+import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.TableScan;
+import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.GenericRecord;
+import org.apache.iceberg.data.IcebergGenerics;
+import org.apache.iceberg.data.Record;
+import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.types.Types;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
-            @Override
-            public S3Client s3() {
-                return S3Client.builder().credentialsProvider(creds).build();
-            }
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-            @Override
-            public GlueClient glue() {
-                return GlueClient.builder().credentialsProvider(creds).build();
-            }
-        };
+@Service
+public class IcebergQueryService {
 
-        // Setup properties for GlueCatalog
-        Map<String, String> catalogProperties = new HashMap<>();
-        catalogProperties.put(CatalogProperties.WAREHOUSE_LOCATION, WAREHOUSE_PATH);
-        catalogProperties.put(CatalogProperties.FILE_IO_IMPL, S3FileIO.class.getName());
-        catalogProperties.put(AwsProperties.CLIENT_FACTORY, customClientFactory.getClass().getName());
+    private static final Logger logger = LoggerFactory.getLogger(IcebergQueryService.class);
 
-        // Register factory manually (since it's not loaded via ServiceLoader in this context)
-        AwsClientFactory.register(customClientFactory);
+    private final Catalog icebergCatalog;
 
-        // Initialize GlueCatalog
-        GlueCatalog catalog = new GlueCatalog();
-        catalog.initialize("glue", catalogProperties);
+    @Value("${iceberg.table.namespace}") // Your Glue database name
+    private String namespace;
 
-        TableIdentifier tableId = TableIdentifier.of(database, tableName);
-        Table table = catalog.loadTable(tableId);
+    @Value("${iceberg.table.name}")    // Your Iceberg table name in Glue
+    private String tableName;
 
-        try (CloseableIterable<Record> rows = IcebergGenerics.read(table).build()) {
-            rows.forEach(records::add);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to read from Iceberg table", e);
+    @Autowired
+    public IcebergQueryService(Catalog icebergCatalog) {
+        this.icebergCatalog = icebergCatalog;
+    }
+
+    public List<DataRecord> readAllData() {
+        TableIdentifier tableIdentifier = TableIdentifier.of(namespace, tableName);
+        logger.info("Loading table: {}", tableIdentifier);
+
+        if (!icebergCatalog.tableExists(tableIdentifier)) {
+            logger.error("Table does not exist: {}", tableIdentifier);
+            throw new RuntimeException("Table not found: " + tableIdentifier);
         }
 
-        return records;
+        Table table = icebergCatalog.loadTable(tableIdentifier);
+        logger.info("Successfully loaded table: {}. Current snapshot ID: {}",
+                tableIdentifier,
+                table.currentSnapshot() != null ? table.currentSnapshot().snapshotId() : "No snapshot");
 
+        Schema tableSchema = table.schema();
+        logger.info("Table schema: {}", tableSchema);
+
+        TableScan scan = table.newScan()
+                .project(tableSchema); // Project all columns, or select specific ones
+
+        List<DataRecord> results = new ArrayList<>();
+        logger.info("Starting table scan for {}", tableIdentifier);
+
+        // Option 1: Using IcebergGenerics to read records (more common for general purpose)
+        try (CloseableIterable<Record> records = IcebergGenerics.read(table).build()) {
+            for (Record record : records) {
+                results.add(convertRecordToDataRecord(record, tableSchema));
+            }
+        } catch (IOException e) {
+            logger.error("Error reading Iceberg table with IcebergGenerics", e);
+            throw new RuntimeException("Failed to read data from Iceberg table", e);
+        }
+
+        // Option 2: Iterating through FileScanTasks (lower level, more control)
+        /*
+        try (CloseableIterable<FileScanTask> fileScanTasks = scan.planFiles()) {
+            for (FileScanTask fileScanTask : fileScanTasks) {
+                logger.debug("Scanning file: {} with delete file: {}", fileScanTask.file().path(), fileScanTask.deletes().isEmpty() ? "none" : fileScanTask.deletes().get(0).path());
+                try (CloseableIterable<Record> records = fileScanTask.asDataTask().rows()) {
+                    for (Record record : records) {
+                        results.add(convertRecordToDataRecord(record, tableSchema));
+                    }
+                }
+            }
+        } catch (IOException e) {
+            logger.error("Error reading Iceberg table tasks", e);
+            throw new RuntimeException("Failed to read data from Iceberg table", e);
+        }
+        */
+
+        logger.info("Successfully read {} records from table {}", results.size(), tableIdentifier);
+        return results;
+    }
+
+    public List<DataRecord> readDataWithFilter(String categoryFilter) {
+        TableIdentifier tableIdentifier = TableIdentifier.of(namespace, tableName);
+        logger.info("Loading table for filtering: {}", tableIdentifier);
+
+        if (!icebergCatalog.tableExists(tableIdentifier)) {
+            logger.error("Table does not exist: {}", tableIdentifier);
+            throw new RuntimeException("Table not found: " + tableIdentifier);
+        }
+        Table table = icebergCatalog.loadTable(tableIdentifier);
+        Schema tableSchema = table.schema();
+
+        // Assuming 'category' is a field in your table schema
+        // Ensure the column name matches exactly, including case sensitivity if applicable
+        if (tableSchema.findField("category") == null) {
+             logger.error("Filter column 'category' not found in schema: {}", tableSchema);
+             throw new IllegalArgumentException("Filter column 'category' not found in table schema.");
+        }
+
+
+        TableScan scan = table.newScan()
+                .project(tableSchema) // Project all columns
+                .filter(Expressions.equal("category", categoryFilter)); // Example filter
+
+        List<DataRecord> results = new ArrayList<>();
+        logger.info("Starting table scan for {} with filter: category = '{}'", tableIdentifier, categoryFilter);
+
+        try (CloseableIterable<Record> records = scan.execute()) { // scan.execute() is simpler for direct record iteration
+            for (Record record : records) {
+                results.add(convertRecordToDataRecord(record, tableSchema));
+            }
+        } catch (IOException e) {
+            logger.error("Error reading Iceberg table with filter", e);
+            throw new RuntimeException("Failed to read filtered data from Iceberg table", e);
+        }
+        logger.info("Successfully read {} records from table {} with filter", results.size(), tableIdentifier);
+        return results;
+    }
+
+
+    private DataRecord convertRecordToDataRecord(Record icebergRecord, Schema schema) {
+        Map<String, Object> fields = new HashMap<>();
+        List<Types.NestedField> columns = schema.columns();
+
+        for (Types.NestedField column : columns) {
+            String columnName = column.name();
+            Object value = icebergRecord.getField(columnName);
+            // Iceberg might return specific types (e.g., Utf8 for strings). Convert if necessary.
+            if (value instanceof org.apache.iceberg.types.Comparators.UTF8) {
+                fields.put(columnName, value.toString());
+            } else if (value instanceof java.nio.ByteBuffer && column.type().typeId() == Types.UUIDType.get().typeId()) {
+                // Example: Convert ByteBuffer for UUID to String if needed, or handle other binary types
+                // For simplicity, storing as is or converting to hex string.
+                // java.util.UUID realUuid = org.apache.iceberg.util.UUIDUtil.convert( (java.nio.ByteBuffer) value);
+                // fields.put(columnName, realUuid.toString());
+                 fields.put(columnName, "ByteBuffer[uuid]"); // Placeholder
+            }
+            else {
+                fields.put(columnName, value);
+            }
+        }
+        // This generic map can be directly used or mapped to a more specific POJO
+        // For the specific DataRecord POJO:
+        // return new DataRecord(
+        //     (Long) fields.getOrDefault("id", null),
+        //     (String) fields.getOrDefault("category", null),
+        //     (Double) fields.getOrDefault("value", null),
+        //     (String) fields.getOrDefault("timestamp", null), // Timestamps might need special handling (e.g., Long to String)
+        //     null // fields map
+        // );
+         return new DataRecord(fields); // Using the generic map constructor
+    }
+}
+```java
+// src/main/java/com/example/icebergreader/controller/IcebergController.java
+package com.example.icebergreader.controller;
+
+import com.example.icebergreader.model.DataRecord;
+import com.example.icebergreader.service.IcebergQueryService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/iceberg")
+public class IcebergController {
+
+    private final IcebergQueryService icebergQueryService;
+
+    @Autowired
+    public IcebergController(IcebergQueryService icebergQueryService) {
+        this.icebergQueryService = icebergQueryService;
+    }
+
+    @GetMapping("/data")
+    public ResponseEntity<List<DataRecord>> getAllTableData() {
+        try {
+            List<DataRecord> data = icebergQueryService.readAllData();
+            if (data.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            // Consider more specific exception handling and error responses
+            return ResponseEntity.internalServerError().body(null); // Or a proper error DTO
+        }
+    }
+
+    @GetMapping("/data/filter")
+    public ResponseEntity<List<DataRecord>> getFilteredTableData(@RequestParam String category) {
+         try {
+            List<DataRecord> data = icebergQueryService.readDataWithFilter(category);
+            if (data.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(data);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(null); // Or error DTO with e.getMessage()
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(null);
+        }
+    }
+}
+```properties
+# src/main/resources/application.properties
+
+# Spring Boot App
+server.port=8080
+
+# AWS Configuration
+aws.region=us-east-1 # Change to your AWS region
+
+# Iceberg Catalog Configuration (for Glue Catalog)
+iceberg.catalog.name=my_glue_catalog # Can be any name you prefer for the catalog instance in your app
+iceberg.catalog.warehouse-path=s3://your-iceberg-s3-bucket-name/path/to/warehouse/
+# Example: s3://my-iceberg-data-lake/iceberg_warehouse/
+
+# Iceberg Table Information
+iceberg.table.namespace=your_glue_database_name # The AWS Glue database where your Iceberg table is registered
+iceberg.table.name=your_iceberg_table_name   # The name of your Iceberg table in Glue
+
+# Optional Glue Catalog Lock configurations (defaults are usually fine for read-only)
+# iceberg.catalog.glue.lock.table-name=iceberg_glue_lock_table # DynamoDB table for locks
+# iceberg.catalog.glue.lock.check-interval-ms=5000
+# iceberg.catalog.glue.lock.heartbeat-interval-ms=10000
+
+# Logging
+logging.level.org.apache.iceberg=INFO
+logging.level.com.example.icebergreader=DEBUG # For more detailed logs from your app
+logging.level.software.amazon.awssdk=WARN # Reduce AWS SDK verbosity, set to DEBUG for troubleshooting
+```java
+// src/main/java/com/example/icebergreader/IcebergReaderApplication.java
+package com.example.icebergreader;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class IcebergReaderApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(IcebergReaderApplication.class, args);
+    }
+
+}
