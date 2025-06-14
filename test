@@ -40,3 +40,11 @@ public class GlueCatalogService {
         }
     }
 }
+
+
+  // Optional: Add any custom S3 endpoint or credentials if needed
+        hadoopConf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
+        hadoopConf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain");
+
+        catalog.setConf(hadoopConf);
+        catalog.initialize("glue", properties);
