@@ -1,59 +1,43 @@
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.List;
+import org.apache.iceberg.catalog.Catalog;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.rest.RESTCatalog;
 
-public class FeatureKeyHasher {
+Map<String, String> properties = new HashMap<>();
 
-    public static class FeatureKeyResult {
-        public final String sha256Hash;
-        public final String featureKey;
-        public final int modValue;
+properties.put(CatalogProperties.CATALOG_IMPL, "org.apache.iceberg.rest.RESTCatalog");
+properties.put(CatalogProperties.URI, "http://rest:8181");
+properties.put(CatalogProperties.WAREHOUSE_LOCATION, "s3a://warehouse/wh/");
+properties.put(CatalogProperties.FILE_IO_IMPL, "org.apache.iceberg.aws.s3.S3FileIO");
+properties.put(AwsProperties.S3FILEIO_ENDPOINT, "http://minio:9000");
 
-        public FeatureKeyResult(String sha256Hash, String featureKey, int modValue) {
-            this.sha256Hash = sha256Hash;
-            this.featureKey = featureKey;
-            this.modValue = modValue;
-        }
-    }
+RESTCatalog catalog = new RESTCatalog();
+Configuration conf = new Configuration();
+catalog.setConf(conf);
+catalog.initialize("demo", properties);
 
-    public static FeatureKeyResult computeFeatureKey(String modfeatureId, List<Object> featureEntries, String delimiter, int N) {
-        // Join values with null-handling
-        StringBuilder featureKeyBuilder = new StringBuilder();
-        for (int i = 0; i < featureEntries.size(); i++) {
-            Object entry = featureEntries.get(i);
-            featureKeyBuilder.append(entry != null ? entry.toString() : "null");
-            if (i < featureEntries.size() - 1) {
-                featureKeyBuilder.append(delimiter);
-            }
-        }
-        String featureKey = featureKeyBuilder.toString();
 
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(featureKey.getBytes(StandardCharsets.UTF_8));
+import org.apache.iceberg.Table;
+import org.apache.iceberg.TableScan;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.TableIdentifier;
 
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hashBytes) {
-                hexString.append(String.format("%02x", b));
-            }
-            String sha256Hash = hexString.toString();
+Namespace webapp = Namespace.of("webapp");
+TableIdentifier name = TableIdentifier.of(webapp, "logs");
+Table table = catalog.loadTable(name);
 
-            // Convert hash to integer mod N
-            int modValue = new java.math.BigInteger(sha256Hash, 16).mod(java.math.BigInteger.valueOf(N)).intValue();
+import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.data.Record;
+import org.apache.iceberg.data.IcebergGenerics;
 
-            return new FeatureKeyResult(sha256Hash, featureKey, modValue);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not available", e);
-        }
-    }
+CloseableIterable<Record> result = IcebergGenerics.read(table).build();
 
-    // Example usage
-    public static void main(String[] args) {
-        List<Object> entries = List.of("val1", null, "val3");
-        FeatureKeyResult result = computeFeatureKey("some_id", entries, "\u0000", 16);
-        System.out.println("Hash: " + result.sha256Hash);
-        System.out.println("Key: " + result.featureKey);
-        System.out.println("Mod Value: " + result.modValue);
-    }
+for (Record r: result) {
+    System.out.println(r);
 }
+
+import org.apache.iceberg.expressions.Expressions;
+
+CloseableIterable<Record> result = IcebergGenerics.read(table)
+        .where(Expressions.equal("level", "error"))
+        .build();
