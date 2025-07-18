@@ -46,3 +46,10 @@
         Table table = catalog.loadTable(TableIdentifier.of("db_name", "table_name"));
 
         System.out.println("Schema: " + table.schema().asStruct());
+
+
+Map<String, String> properties = new HashMap<>();
+properties.put("warehouse", "s3://your-bucket/your-warehouse-path/");
+properties.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+properties.put("catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog");
+properties.put("uri", "https://glue.<region>.amazonaws.com"); // Optional
