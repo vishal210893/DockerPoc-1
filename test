@@ -1,3 +1,43 @@
+
+package com.mycompany.iceberg;
+
+import org.apache.iceberg.aws.AwsClientFactory;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.GlueClientBuilder;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
+
+public class StaticAwsClientFactory implements AwsClientFactory {
+
+  private StaticCredentialsProvider credsProvider() {
+    AwsSessionCredentials creds = AwsSessionCredentials.create(
+      System.getenv("AWS_ACCESS_KEY_ID"),
+      System.getenv("AWS_SECRET_ACCESS_KEY"),
+      System.getenv("AWS_SESSION_TOKEN")
+    );
+    return StaticCredentialsProvider.create(creds);
+  }
+
+  @Override
+  public <T> T create(AwsClientBuilder<T, ?> builder) {
+    // Apply the same static creds and region to every AWS client
+    builder.credentialsProvider(credsProvider())
+           .region(software.amazon.awssdk.regions.Region.of(
+               System.getenv("AWS_REGION")));
+    return builder.build();
+  }
+}
+
+
+
+
+
+
+
 <!-- Iceberg Core -->
     <dependency>
         <groupId>org.apache.iceberg</groupId>
