@@ -1,125 +1,48 @@
-package com.example.iceberg;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.hadoop.HadoopCatalog;
-
-public class IcebergHadoopTableInfo {
-
-    public static void main(String[] args) {
-        if (args.length < 3) {
-            System.err.println("Usage: IcebergHadoopTableInfo <s3://warehouse/> <namespace> <table>");
-            System.exit(1);
-        }
-
-        String warehouseLocation = args[0];             // e.g. s3://your-bucket/warehouse/
-        String namespace       = args[1];               // e.g. my_db
-        String tableName       = args[2];               // e.g. my_table
-
-        // 1) Configure Hadoop S3A with your AWS creds (or rely on env/default provider)
-        Configuration hadoopConf = new Configuration();
-        // If you're using temp credentials, make sure AWS_SESSION_TOKEN is set
-        hadoopConf.set("fs.s3a.access.key",    System.getenv("AWS_ACCESS_KEY_ID"));
-        hadoopConf.set("fs.s3a.secret.key",    System.getenv("AWS_SECRET_ACCESS_KEY"));
-        String sessionToken = System.getenv("AWS_SESSION_TOKEN");
-        if (sessionToken != null) {
-            hadoopConf.set("fs.s3a.session.token", sessionToken);
-        }
-        // Mandatory for SigV4 in many regions
-        hadoopConf.set("fs.s3a.endpoint",           "s3.us-east-1.amazonaws.com");
-        hadoopConf.set("fs.s3a.aws.credentials.provider",
-                        "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
-        hadoopConf.set("fs.s3a.impl",               "org.apache.hadoop.fs.s3a.S3AFileSystem");
-        hadoopConf.set("fs.s3a.path.style.access",  "true");
-
-        // 2) Create the Iceberg HadoopCatalog
-        HadoopCatalog catalog = new HadoopCatalog(hadoopConf, warehouseLocation);
-
-        // 3) Identify and load the table
-        TableIdentifier identifier = TableIdentifier.of(namespace, tableName);
-        Table table = catalog.loadTable(identifier);
-
-        // 4) Print out metadata
-        System.out.println("=== Iceberg Table Info ===");
-        System.out.println("Name:            " + table.name());
-        System.out.println("Location:        " + table.location());
-        System.out.println("Schema:          " + table.schema());
-        System.out.println("Partition Spec:  " + table.spec());
-        if (table.currentSnapshot() != null) {
-            System.out.println("Current Snapshot ID: " +
-                               table.currentSnapshot().snapshotId());
-        } else {
-            System.out.println("No snapshots found.");
-        }
-    }
-}
-
-
-
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
-                             http://maven.apache.org/maven-v4_0_0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>com.example</groupId>
-  <artifactId>iceberg-s3-demo</artifactId>
-  <version>1.0-SNAPSHOT</version>
-  <properties>
-    <java.version>11</java.version>
-    <iceberg.version>1.4.2</iceberg.version>
-    <hadoop.version>3.3.4</hadoop.version>
-    <aws.sdk.version>1.12.325</aws.sdk.version>
-    <slf4j.version>1.7.36</slf4j.version>
-  </properties>
-
-  <dependencies>
-    <!-- Iceberg core and Hadoop catalog support -->
+<!-- Iceberg Core -->
     <dependency>
-      <groupId>org.apache.iceberg</groupId>
-      <artifactId>iceberg-core</artifactId>
-      <version>${iceberg.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.iceberg</groupId>
-      <artifactId>iceberg-hadoop</artifactId>
-      <version>${iceberg.version}</version>
+        <groupId>org.apache.iceberg</groupId>
+        <artifactId>iceberg-core</artifactId>
+        <version>1.4.3</version>
     </dependency>
 
-    <!-- Hadoop AWS support (S3A filesystem) -->
+    <!-- Iceberg Glue Catalog -->
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-aws</artifactId>
-      <version>${hadoop.version}</version>
+        <groupId>org.apache.iceberg</groupId>
+        <artifactId>iceberg-aws</artifactId>
+        <version>1.4.3</version>
     </dependency>
 
-    <!-- AWS SDK (v1) bundle for S3, STS, etc. -->
+    <!-- Hadoop AWS support -->
     <dependency>
-      <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-bundle</artifactId>
-      <version>${aws.sdk.version}</version>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-aws</artifactId>
+        <version>3.3.6</version>
     </dependency>
 
-    <!-- Simple SLF4J logger -->
+    <!-- Parquet Tools -->
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
-      <version>${slf4j.version}</version>
+        <groupId>org.apache.parquet</groupId>
+        <artifactId>parquet-tools</artifactId>
+        <version>1.13.1</version>
     </dependency>
-  </dependencies>
 
-  <build>
-    <plugins>
-      <!-- Ensure we compile with Java 11 -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
-        <configuration>
-          <release>${java.version}</release>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
-</project>
+    <!-- Iceberg Parquet -->
+    <dependency>
+        <groupId>org.apache.iceberg</groupId>
+        <artifactId>iceberg-parquet</artifactId>
+        <version>1.4.3</version>
+    </dependency>
 
+ Configuration hadoopConf = new Configuration();
+        hadoopConf.set("fs.s3a.access.key", "<AWS_ACCESS_KEY>");
+        hadoopConf.set("fs.s3a.secret.key", "<AWS_SECRET_KEY>");
+        hadoopConf.set("fs.s3a.endpoint", "s3.amazonaws.com");
+        hadoopConf.set("fs.s3a.path.style.access", "true");
+
+        GlueCatalog catalog = new GlueCatalog();
+        catalog.setConf(hadoopConf);
+        catalog.initialize("glue", null);
+
+        Table table = catalog.loadTable(TableIdentifier.of("db_name", "table_name"));
+
+        System.out.println("Schema: " + table.schema().asStruct());
