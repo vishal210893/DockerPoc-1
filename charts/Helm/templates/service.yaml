@@ -1,3 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dockerpoc-1
+  labels:
+    app.kubernetes.io/name: dockerpoc-1
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPortName }}
+      name: http
+  selector:
+    {{- include "dockerpoc-chart.selectorLabels" . | nindent 4 }}
+
+---
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
