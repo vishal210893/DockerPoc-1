@@ -4,7 +4,7 @@ description: Production-grade Helm chart for DockerPoc application
 type: application
 
 # Bump when chart structure/templates change (NOT app version).
-version: 5.0.0
+version: 5.0.1
 
 # Application (container) version. Prefer immutable image tags.
 appVersion: "2025.07.23"

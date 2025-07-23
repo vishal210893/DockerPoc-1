@@ -1,0 +1,45 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+annotations:
+  artifacthub.io/changes: |
+    - feat: add values.schema.json and new operational templates (HPA, PDB, etc.)
+    - chore: enforce stricter labels & security contexts
+    - docs: extensive in-template comments
+  category: Application
+  licenses: Apache-2.0
+apiVersion: v2
+appVersion: 2025.07.23
+description: Production-grade Helm chart for DockerPoc application
+home: https://github.com/vishal210893/dockerpoc
+keywords:
+- - dockerpoc
+- - web-application
+- - microservice
+kubeVersion: '>=1.23.0-0'
+maintainers:
+- - email: vishal210893@gmail.com
+  name: Vishal Kumar
+  url: https://github.com/vishal210893
+name: dockerpoc-app
+sources:
+- - https://github.com/vishal210893/dockerpoc
+type: application
+version: 1.1.0
+
+...
+files:
+  dockerpoc-app-1.1.0.tgz: sha256:bde3c444d7b71ce84e78ae381a9edd840878926b9c918452e74620fed3ec11f5
+-----BEGIN PGP SIGNATURE-----
+
+wsDcBAEBCgAQBQJogTJECRDKOAKhWpnIYQAAFlsMAJF52pGruxycVaMOb0jO1E8M
+SoU8oPLFjHNrvrur234WI0+5srGbZkrpgOstRoC1tHOLFYc0PnAV7H9yE0YKNaHJ
+XMYbIbjL+4EtEcD6PeFCbOSXXXiqsV+cq9QSyEO2SOrJZqXQgWS3GZg0iDj9TvNb
+k7QMI1TQNyoeMKrRPYPsGGlODkHN0pe8m5vBisQJWJFPhjdmU7GsUdfN3tRLHmyr
+Cwjz6Tzr9haG6rMAMeIRYre5F1T5fG8HOpVtEoI2kkdHv+TcEidA4eRpSuVCD+e4
+YlmfNqIg9YqgE1OeumzvRggFhAi2Kqx1TRU2VTf0cOTK88ZhBWAgMNbMwivDMGHG
+V3j3j3uGIeRFmeHPA4dokwuchw6Yi0oPCKo4Fwvk2pP1VCiyRiWMxdeMabfsv9Vb
+C07SVL4sGRlxQHsDT3+RM8Xv/PEIxokYbJ4sgGRxXuTch3o2qMo7iwXmmQdr5SwD
+2ohcrdK7gkPsa9BvZAEZdeoW6+O1JtrD5JMXqD1WGw==
+=ccpt
+-----END PGP SIGNATURE-----
