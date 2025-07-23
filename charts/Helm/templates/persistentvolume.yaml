@@ -1,18 +1,17 @@
-# dockerpoc-chart/templates/persistentvolume.yaml
-  {{- if and .Values.persistence.enabled .Values.persistence.pv.enabled }}
+{{- if and .Values.persistence.enabled .Values.persistence.pv.enabled }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: {{ .Values.persistence.pv.name }}
-  labels:
-    {{- include "dockerpoc-chart.labels" . | nindent 4 }}
+  name: {{ include "dockerpoc-app.pvName" . }}      # pv-volume
 spec:
-  storageClassName: {{ .Values.persistence.storageClass }} # Should match the SC or PVC's SC
+  storageClassName: {{ .Values.persistence.pv.storageClassName }}
   capacity:
-    storage: {{ .Values.persistence.size }}
+    storage: {{ .Values.persistence.pv.size }}
   accessModes:
-    {{- toYaml .Values.persistence.accessModes | nindent 4 }}
+    {{- toYaml .Values.persistence.pv.accessModes | nindent 2 }}
+  {{- if .Values.persistence.pv.hostPath.enabled }}
   hostPath:
-    path: {{ .Values.persistence.pv.hostPath }}
-  persistentVolumeReclaimPolicy: {{ .Values.persistence.pv.reclaimPolicy }}
+    path: {{ .Values.persistence.pv.hostPath.path | quote }}
   {{- end }}
+  persistentVolumeReclaimPolicy: {{ .Values.persistence.pv.reclaimPolicy }}
+{{- end }}

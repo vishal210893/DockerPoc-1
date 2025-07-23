@@ -1,17 +1,35 @@
-# dockerpoc-chart/Chart.yaml
 apiVersion: v2
-name: dockerpoc-chart
-description: A Helm chart for deploying the DockerPoc application
+name: dockerpoc-app
+description: Production-grade Helm chart for DockerPoc application
 type: application
 
-# This is the chart version. This version number should be incremented each time you make changes
-# to the chart and its templates.
-version: 0.6.0
+# Bump when chart structure/templates change (NOT app version).
+version: 1.1.0
 
-# This is the version number of the application being deployed. This version number should be
-# incremented each time you make changes to the application.
-appVersion: "1.0.1"
+# Application (container) version. Prefer immutable image tags.
+appVersion: "2025.07.23"
+
+# Require a minimum Helm/K8s for features used in templates.
+kubeVersion: ">=1.23.0-0"
 
 maintainers:
   - name: Vishal Kumar
     email: vishal210893@gmail.com
+    url: https://github.com/vishal210893
+
+keywords:
+  - dockerpoc
+  - web-application
+  - microservice
+
+home: https://github.com/vishal210893/dockerpoc
+sources:
+  - https://github.com/vishal210893/dockerpoc
+
+annotations:
+  category: Application
+  licenses: Apache-2.0
+  artifacthub.io/changes: |
+    - feat: add values.schema.json and new operational templates (HPA, PDB, etc.)
+    - chore: enforce stricter labels & security contexts
+    - docs: extensive in-template comments

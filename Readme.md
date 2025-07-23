@@ -1,217 +1,182 @@
 # DockerPoc-1
 
-A Spring Boot application demonstrating Docker, Kubernetes, and CI/CD best practices with GitHub Actions.
+*A personal endeavor to learn and demonstrate various DevOps concepts: Docker, Kubernetes, Helm, and Terraform — all wrapped around a Spring Boot application.*
 
-## 🚀 Overview
+---
 
-This project is a Spring Boot application that showcases:
-- Docker containerization
-- Kubernetes deployment
-- CI/CD with GitHub Actions
-- Remote debugging capabilities
-- Database integration (PostgreSQL)
-- API documentation with OpenAPI/Swagger
-- Monitoring with Spring Boot Actuator
+## ✨ Project Highlights
 
-## 🛠️ Tech Stack
+* **Spring Boot Application:** A simple RESTful API built with Spring Boot, showcasing basic CRUD operations and exposing monitoring endpoints.
+* **Docker:** Containerization of the Spring Boot application for consistent environments.
+* **Kubernetes:** Deployment and management of the application on a Kubernetes cluster using various manifest types (Deployments, Services, etc.).
+* **Helm:** Packaging and deploying the application to Kubernetes using Helm charts for easier management and versioning.
+* **Terraform:** Infrastructure as Code (IaC) for provisioning and managing the necessary cloud resources (current state focuses on local configurations, but the structure is in place for cloud integration).
+* **CI/CD:** *(Implied/Expandable)* The project structure allows for the integration of CI/CD pipelines to automate builds, tests, and deployments.
 
-- Java 17
-- Spring Boot 3.4.5
-- PostgreSQL
-- Docker
-- Kubernetes
-- GitHub Actions
-- Maven
-- Lombok
-- Spring Data JPA
-- SpringDoc OpenAPI
-- Spring Boot Actuator
-
-## 📋 Prerequisites
-
-- JDK 17
-- Maven
-- Docker
-- Kubernetes cluster (for deployment)
-- kubectl (for Kubernetes operations)
-- PostgreSQL (for production)
-
-## 🏗️ Project Structure
-
-```
-.
-├── src/                    # Source code
-├── K8s_Yaml/              # Kubernetes manifests
-│   ├── App/               # Application deployments
-│   ├── Config/            # ConfigMaps and Secrets
-│   ├── Ingress/           # Ingress configurations
-│   ├── Network/           # Network policies
-│   ├── Probe/             # Health checks
-│   ├── RBAC/              # Role-based access control
-│   ├── Schedule/          # Scheduled jobs
-│   ├── Storage/           # Persistent storage
-│   └── kubevela/          # KubeVela configurations
-├── nginx/                 # Nginx configurations
-├── .github/workflows/     # GitHub Actions workflows
-├── Dockerfile             # Docker build file
-├── docker-compose.yml     # Docker Compose configuration
-└── pom.xml               # Maven configuration
-```
+---
 
 ## 🚀 Getting Started
 
-### Local Development
+### 🔧 Prerequisites
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/vishal210893/DockerPoc-1.git
-   cd DockerPoc-1
-   ```
+Ensure the following are installed before you begin:
 
-2. Build the application:
-   ```bash
-   mvn clean package
-   ```
+* JDK 17
+* Maven
+* Docker
+* `kubectl`
+* Helm
+* Terraform
+* A running Kubernetes cluster (Minikube, Docker Desktop with Kubernetes enabled, or a cloud-based cluster)
 
-3. Run with Docker Compose:
-   ```bash
-   docker-compose up
-   ```
-
-### Remote Debugging
-
-The application supports remote debugging on port 5005. To enable debugging:
-
-1. Start the application with debug mode:
-   ```bash
-   java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -jar target/dockerpoc-1.jar
-   ```
-
-2. Configure your IDE to connect to localhost:5005
-
-## 🐳 Docker
-
-### Building the Image
+### 📦 Cloning the Repository
 
 ```bash
-docker build -t dockerpoc-1 .
+git clone https://github.com/your-username/DockerPoc-1.git
+cd DockerPoc-1
 ```
 
-### Running the Container
+### 🏗️ Building the Spring Boot Application
 
 ```bash
-docker run -p 8005:8005 -p 5005:5005 dockerpoc-1
+mvn clean package
 ```
+
+This will create an executable JAR file in the `target` directory.
+
+---
+
+## 🐳 Docker Deployment
+
+1. **Build the Docker Image:**
+
+   ```bash
+   docker build -t dockerpoc-1 .
+   ```
+
+   This command builds a Docker image named `dockerpoc-1` using the `Dockerfile` in the root directory.
+
+2. **Run the Docker Container:**
+
+   ```bash
+   docker run -p 8080:8080 dockerpoc-1
+   ```
+
+   This runs the Docker container and maps port 8080 on your host to port 8080 in the container.
+
+---
 
 ## ☸️ Kubernetes Deployment
 
-### Prerequisites
+Kubernetes manifests are located in the `K8s_Yaml` directory.
 
-- Kubernetes cluster
-- kubectl configured
-- Docker image pushed to registry
+1. **Apply the Manifests:**
 
-### Deployment Steps
-
-1. Apply Kubernetes configurations:
    ```bash
    kubectl apply -f K8s_Yaml/
    ```
 
-2. Verify deployment:
+   This command applies all the Kubernetes configuration files in the `K8s_Yaml` directory to your connected Kubernetes cluster.
+
+2. **Verify the Deployment:**
+
    ```bash
    kubectl get pods
    kubectl get services
    ```
 
-## 🔄 CI/CD Pipeline
+   Check the status of your pods and services to ensure the application is running correctly.
 
-The project uses GitHub Actions for CI/CD. The workflow includes:
+---
 
-1. Build and test
-2. Docker image creation
-3. Push to container registry
-4. Kubernetes deployment
+## 📈 Helm Chart Deployment
 
-## 📊 Monitoring
+The Helm chart for this project is located in the `charts/Helm` directory.
 
-The application includes Spring Boot Actuator endpoints for monitoring:
+1. **Add the Helm Repository (if hosted):**
+   If you have hosted your Helm chart in a repository, you can add it using:
 
-- Health check: `/actuator/health`
-- Metrics: `/actuator/metrics`
-- Info: `/actuator/info`
-
-## 📚 API Documentation
-
-OpenAPI/Swagger documentation is available at:
-```
-http://localhost:8005/swagger-ui.html
-```
-
-## 🔐 Environment Variables
-
-Key environment variables:
-- `SPRING_PROFILES_ACTIVE`: Application profile (default: prod)
-- `DB_PASSWORD`: Database password
-- `DEBUG_PORT`: Remote debugging port (default: 5005)
-
-## 🛡️ Security
-
-- RBAC configurations in `K8s_Yaml/RBAC/`
-- Network policies in `K8s_Yaml/Network/`
-- Secure secret management
-
-## 📝 Logging
-
-Logs are stored in the `logs/` directory and can be accessed through:
-- Container logs
-- Kubernetes pod logs
-- Spring Boot Actuator endpoints
-
-## 🔧 Troubleshooting
-
-1. Check container logs:
    ```bash
-   docker logs <container-id>
+   helm repo add my-repo https://your-helm-repo-url
+   helm repo update
    ```
 
-2. Check Kubernetes pod logs:
+2. **Install the Helm Chart:**
+   Navigate to the `charts/Helm` directory and install the chart:
+
    ```bash
-   kubectl logs <pod-name>
+   cd charts/Helm
+   helm install dockerpoc-release .
    ```
 
-3. Verify Kubernetes resources:
+   This will deploy the application to your Kubernetes cluster using the configurations defined in the Helm chart.
+
+3. **Uninstall the Helm Chart:**
+   To remove the deployment created by Helm:
+
    ```bash
-   kubectl get all
+   helm uninstall dockerpoc-release
    ```
+
+---
+
+## 🏗️ Terraform Configuration
+
+Terraform files are located in the `Terraform` directory. While the current configuration might be minimal, the intention is to use Terraform for provisioning infrastructure.
+
+1. **Initialize Terraform:**
+
+   ```bash
+   cd Terraform
+   terraform init
+   ```
+
+2. **Review the Plan:**
+
+   ```bash
+   terraform plan
+   ```
+
+   This command shows you the changes Terraform will make to your infrastructure.
+
+3. **Apply the Configuration:**
+
+   ```bash
+   terraform apply
+   ```
+
+   This command applies the Terraform configuration to provision the resources.
+
+---
+
+## 🔍 Exploring the Application
+
+Once the application is deployed, you can typically access it through a Service (Kubernetes) or by port-forwarding to a pod. Refer to the specific deployment method's documentation for details.
+
+* **API Endpoints:** The Spring Boot application exposes various REST endpoints.
+* **Actuator Endpoints:** Monitoring information is available via Spring Boot Actuator (e.g., `/actuator/health`, `/actuator/metrics`).
+* **Swagger UI:** API documentation is available through Swagger UI (commonly `/swagger-ui.html`, depending on your configuration).
+
+---
+
+## 📚 Learning and Exploration
+
+This project is designed as a learning tool. Feel free to explore the code and configurations to understand how the different technologies are integrated. Experiment with different deployment strategies, modify the application, and observe the impact on the deployment process.
+
+---
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+As this is a personal learning project, contributions are not actively sought, but you are welcome to fork the repository and use it for your own learning purposes.
+
+---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the **MIT License**.
 
-## 👥 Authors
-
-- Vishal Kumar - [vishal210893](https://github.com/vishal210893)
+---
 
 ## 🙏 Acknowledgments
 
-- Spring Boot team
-- Docker community
-- Kubernetes community
-
-``` helm
-helm repo add vishal210893 https://vishal210893.github.io/DockerPoc-1/
-helm repo update vishal210893
-helm install dockerpoc-chart vishal210893/dockerpoc-chart --atomic
-helm uninstall dockerpoc-chart
-kc port-forward svc/ingress-nginx-controller 8080:80 -n ingress-nginx
-http://localhost:8080/ingress/dockerpoc/swagger-ui/index.html
-```
+Thanks to the open-source communities of Spring Boot, Docker, Kubernetes, Helm, and Terraform for providing these incredible tools.

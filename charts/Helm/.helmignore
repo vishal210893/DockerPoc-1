@@ -1,12 +1,11 @@
-# dockerpoc-chart/.helmignore
-# Patterns to ignore when building packages.
-# This will be ignored by packaging systems like Helm.
-
+# Common ignores
+.git/
+.github/
+.vscode/
 *.swp
-*.swo
-*~
-*.bak
 *.tmp
+*.log
 *.orig
-notes.md
-README.md # If you have a separate README for the chart itself
+.idea/
+Dockerfile
+README*.md

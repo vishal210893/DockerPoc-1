@@ -1,43 +1,41 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: dockerpoc-1
+  name: {{ include "dockerpoc-app.fullname" . }}
   labels:
-    app.kubernetes.io/name: dockerpoc-1
+    {{- include "dockerpoc-app.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.targetPortName }}
+      targetPort: {{ .Values.service.targetPort }}
+      protocol: TCP
       name: http
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
   selector:
-    {{- include "dockerpoc-chart.selectorLabels" . | nindent 4 }}
-
----
-
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: dockerpoc-1
-  annotations:
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: /$1
-spec:
-  ingressClassName: nginx
-  rules:
-    - http:
-        paths:
-          - path: /ingress/(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: dockerpoc-1
-                port:
-                  name: http
-          - path: /cloud/(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: cloudtest
-                port:
-                  number: 9015
+    {{- include "dockerpoc-app.selectorLabels" . | nindent 4 }}
+  {{- if eq .Values.service.type "LoadBalancer" }}
+  {{- with .Values.service.loadBalancerIP }}
+  loadBalancerIP: {{ . }}
+  {{- end }}
+  {{- with .Values.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  {{- if eq .Values.service.type "ExternalName" }}
+  externalName: {{ .Values.service.externalName }}
+  {{- end }}
+  {{- with .Values.service.sessionAffinity }}
+  sessionAffinity: {{ . }}
+  {{- end }}
+  {{- with .Values.service.sessionAffinityConfig }}
+  sessionAffinityConfig:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

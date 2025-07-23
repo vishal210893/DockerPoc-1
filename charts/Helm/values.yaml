@@ -1,129 +1,239 @@
-# dockerpoc-chart/values.yaml
-replicaCount: 1
+# -----------------------------------------------------------------------------
+# Global
+# -----------------------------------------------------------------------------
+global:
+  imageRegistry: ""                 # Prefix for all images (e.g., gcr.io/acme)
+  imagePullSecrets: []              # List of imagePullSecrets names
 
-image:
-  repository: vishal210893/dockerpoc-1
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "20250723-142135"
-
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
-
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: false
-  # Annotations to add to the service account
+# -----------------------------------------------------------------------------
+# Deployment
+# -----------------------------------------------------------------------------
+deployment:
+  replicas: 1
+  componentLabel: "backend"              # app.kubernetes.io/component
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
 
+  container:
+    name: "app"
+    image: "vishal210893/dockerpoc-1"
+    tag: "20250723-154116"
+    imagePullPolicy: "IfNotPresent"
+    ports:
+      http: 8005
+      debug: 5005
+    envFromSecretKey:
+      secretName: "env-secret"
+      key: "SECRET-VALUE"
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "1"
+      limits:
+        memory: "2Gi"
+        cpu: "3"
+
+# -----------------------------------------------------------------------------
+# Service Account
+# -----------------------------------------------------------------------------
+serviceAccount:
+  create: false
+  name: ""                           # Set to reuse existing SA
+  annotations: {}
+  automount: true
+
+# -----------------------------------------------------------------------------
+# Pod/Container security & metadata
+# -----------------------------------------------------------------------------
 podAnnotations: {}
-podSecurityContext: {}
-# fsGroup: 2000
+podLabels: {}
 
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-# runAsUser: 1000
+podSecurityContext:
+  fsGroup: 2000
+  runAsNonRoot: true
+  runAsUser: 1000
 
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ "ALL" ]
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+priorityClassName: ""
+terminationGracePeriodSeconds: 30
+
+dnsPolicy: ClusterFirst
+dnsConfig: {}
+enableServiceLinks: true
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+
+# -----------------------------------------------------------------------------
+# Networking
+# -----------------------------------------------------------------------------
 service:
   type: ClusterIP
-  port: 8008 # Port for the ClusterIP service
-  targetPortName: http # Name of the target port on the pod (from deployment.yaml)
+  port: 8080
+  targetPort: http
+  annotations: {}
+  labels: {}
+  # nodePort: 30080                    # Only if type: NodePort
+  # loadBalancerIP: ""                 # If type: LoadBalancer
+  # loadBalancerSourceRanges: []
+  # sessionAffinity: None
+  # sessionAffinityConfig: {}
 
 containerPorts:
-  http: 8005
+  http: 8080
   debug: 5005
 
 ingress:
   enabled: true
+  name: "dockerpoc-1"
   className: "nginx"
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: /$1
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: "/$1"
+  hosts: []    # we're using hostless rules
+  rules:
+    - paths:
+        - path: /ingress/(.*)
+          pathType: ImplementationSpecific
+          backend:
+            service:
+              name: dockerpoc-1
+              port:
+                name: http
+        - path: /cloud/(.*)
+          pathType: ImplementationSpecific
+          backend:
+            service:
+              name: cloudtest
+              port:
+                number: 9015
 
-  paths:
-    - path: /ingress/(.*)
-      pathType: ImplementationSpecific
-      backend:
-        serviceName: dockerpoc-1
-        servicePortName: http
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []
 
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+# -----------------------------------------------------------------------------
+# Probes
+# -----------------------------------------------------------------------------
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
 
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+
+# -----------------------------------------------------------------------------
+# Resources
+# -----------------------------------------------------------------------------
 resources:
-  requests:
-    memory: "1Gi"
-    cpu: "1"
   limits:
-    memory: "2Gi"
-    cpu: "3"
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
 
-# Environment variables from secrets
-# Set create to false if you manage the secret externally
-envSecret:
+# -----------------------------------------------------------------------------
+# Env & Secrets
+# -----------------------------------------------------------------------------
+env:
+  - name: APP_ENV
+    value: "production"
+  - name: LOG_LEVEL
+    value: "info"
+
+envFromSecret:
+  enabled: true
+  secretName: "dockerpoc-app-secret"
+
+secret:
   create: true
-  name: "env-secret" # Name of the Kubernetes Secret object
+  name: "env-secret"
+  type: "Opaque"          # k8s uses Opaque; 'generic' is kubectl CLI flag
   stringData:
-    SECRET-VALUE: "Helm chart secret value" # The actual secret value
+    SECRET-VALUE: "K8s secret"
 
+# -----------------------------------------------------------------------------
+# Persistence
+# -----------------------------------------------------------------------------
 persistence:
   enabled: true
-  pvcName: "file-pvc" # Name of the PersistentVolumeClaim
-  accessModes:
-    - ReadWriteMany # Be cautious with ReadWriteMany for hostPath on single node setups
-  size: "1Gi"
-  # If storageClass is "", the default StorageClass will be used.
-  # If set to "-", no storageClassName spec is set, allowing cluster default or PV binding.
-  # Or specify your custom storage class name.
+  volumeName: "filestorage"
+  mountPath: "/opt/file"
+  accessModes: ["ReadWriteMany"]
+  size: 1Gi
   storageClass: "dockerpoc-sc"
 
-  # Configuration for a pre-existing or manually provisioned PersistentVolume
-  # Set pv.enabled to false if using dynamic provisioning with the StorageClass above
+  pvc:
+    name: "file-pvc"
+
   pv:
-    enabled: true # Set to false if your StorageClass handles dynamic provisioning
+    enabled: true               # turn off in prod if using dynamic provisioning
     name: "pv-volume"
-    # storageClass must match persistence.storageClass if pv.enabled and persistence.storageClass are set
-    # For hostPath, this PV is tied to a specific node.
-    hostPath: "/Users/viskumar/mountpath" # Node-specific path
+    storageClassName: "dockerpoc-sc"
+    size: 1Gi
+    accessModes: ["ReadWriteMany"]
     reclaimPolicy: Retain
+    hostPath:
+      enabled: true
+      path: /Users/viskumar/mountpath
 
 storageClass:
-  enabled: true # Set to false if you use an existing StorageClass or cluster default
+  create: true
   name: "dockerpoc-sc"
-  provisioner: "k8s.io/minikube-hostpath" # Change for cloud CSI driver or other provisioners
+  provisioner: "k8s.io/minikube-hostpath"
   parameters:
-    type: "pd-ssd" # Example parameter, specific to provisioner
-  reclaimPolicy: Retain # Or Delete
-  volumeBindingMode: Immediate # Or WaitForFirstConsumer
-  # allowVolumeExpansion: true
+    type: pd-ssd
 
-# Optional NodePort service configuration (from your commented out section)
-nodePortService:
-  enabled: false
-  nameSuffix: "-nodeport"
-  port: 8006
-  targetPortName: http
-  nodePort: 30080
 
+# -----------------------------------------------------------------------------
+# Autoscaling / Disruption
+# -----------------------------------------------------------------------------
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
 
-nodeSelector: {}
-tolerations: []
-affinity: {}
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# -----------------------------------------------------------------------------
+# Extras
+# -----------------------------------------------------------------------------
+extraVolumes: []
+extraVolumeMounts: []
+extraContainers: []
+initContainers: []
