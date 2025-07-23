@@ -5,7 +5,7 @@ image:
   repository: vishal210893/dockerpoc-1
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "20250520-172921"
+  tag: "20250723-142135"
 
 imagePullSecrets: []
 nameOverride: ""
