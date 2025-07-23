@@ -1,0 +1,17 @@
+apiVersion: v1
+entries:
+  dockerpoc-chart:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2025-07-23T14:20:44.045238592Z"
+    description: A Helm chart for deploying the DockerPoc application
+    digest: ad3c5295fdf9ff5f7c8debddaec4442975d8899c95ff77b56dba95a25ba395f9
+    maintainers:
+    - email: vishal210893@gmail.com
+      name: Vishal Kumar
+    name: dockerpoc-chart
+    type: application
+    urls:
+    - https://github.com/vishal210893/DockerPoc-1/releases/download/dockerpoc-chart-0.1.0/dockerpoc-chart-0.1.0.tgz
+    version: 0.1.0
+generated: "2025-07-23T14:20:44.045247508Z"
