@@ -1,0 +1,46 @@
+version: '3.4'
+services:
+  redis-server:
+    image: redis
+    container_name: redis-cache
+    command: redis-server --requirepass "rediscache"
+    ports:
+    - 6378:6379
+    restart: always
+  nginx:
+    restart: always
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile-nginx
+    image: vishal210893/nginx:1
+    container_name: nginx-server
+    ports:
+      - 3050:80
+  dockerpoc-1:
+    build:
+      # context: specify the location of dockerfile (.(dot) = current working directory)
+      context: .
+      # To specify name of dockerfile
+      dockerfile: dockerfile
+    image: vishal210893/dockerpoc-1:1
+    container_name: dockerpoc-1
+    volumes:
+    - /home/vishal/Desktop/dockermount:/opt/file
+    ports:
+      - 5000:8005
+    environment:
+      env_value: Server 1
+    restart: always
+  dockerpoc-2:
+    build:
+      context: /home/vishal/Desktop/DockerPoc-2
+      dockerfile: Dockerfile
+    image: vishal210893/dockerpoc-2:1
+    container_name: dockerpoc-2
+    ports:
+      - 5001:8006
+    environment:
+      env_value: Server 2
+    # We can specify starting command in docker-compose also instead of in dockerfile
+    entrypoint: [ "sh", "-c", "java -jar /opt/aims/dockerpoc-2.jar"]
+    restart: always

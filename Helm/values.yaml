@@ -1,0 +1,129 @@
+# dockerpoc-chart/values.yaml
+replicaCount: 1
+
+image:
+  repository: vishal210893/dockerpoc-1
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "20250520-172921"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podSecurityContext: {}
+# fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+# runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8008 # Port for the ClusterIP service
+  targetPortName: http # Name of the target port on the pod (from deployment.yaml)
+
+containerPorts:
+  http: 8005
+  debug: 5005
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+
+  paths:
+    - path: /ingress/(.*)
+      pathType: ImplementationSpecific
+      backend:
+        serviceName: dockerpoc-1
+        servicePortName: http
+
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "1"
+  limits:
+    memory: "2Gi"
+    cpu: "3"
+
+# Environment variables from secrets
+# Set create to false if you manage the secret externally
+envSecret:
+  create: true
+  name: "env-secret" # Name of the Kubernetes Secret object
+  stringData:
+    SECRET-VALUE: "Helm chart secret value" # The actual secret value
+
+persistence:
+  enabled: true
+  pvcName: "file-pvc" # Name of the PersistentVolumeClaim
+  accessModes:
+    - ReadWriteMany # Be cautious with ReadWriteMany for hostPath on single node setups
+  size: "1Gi"
+  # If storageClass is "", the default StorageClass will be used.
+  # If set to "-", no storageClassName spec is set, allowing cluster default or PV binding.
+  # Or specify your custom storage class name.
+  storageClass: "dockerpoc-sc"
+
+  # Configuration for a pre-existing or manually provisioned PersistentVolume
+  # Set pv.enabled to false if using dynamic provisioning with the StorageClass above
+  pv:
+    enabled: true # Set to false if your StorageClass handles dynamic provisioning
+    name: "pv-volume"
+    # storageClass must match persistence.storageClass if pv.enabled and persistence.storageClass are set
+    # For hostPath, this PV is tied to a specific node.
+    hostPath: "/Users/viskumar/mountpath" # Node-specific path
+    reclaimPolicy: Retain
+
+storageClass:
+  enabled: true # Set to false if you use an existing StorageClass or cluster default
+  name: "dockerpoc-sc"
+  provisioner: "k8s.io/minikube-hostpath" # Change for cloud CSI driver or other provisioners
+  parameters:
+    type: "pd-ssd" # Example parameter, specific to provisioner
+  reclaimPolicy: Retain # Or Delete
+  volumeBindingMode: Immediate # Or WaitForFirstConsumer
+  # allowVolumeExpansion: true
+
+# Optional NodePort service configuration (from your commented out section)
+nodePortService:
+  enabled: false
+  nameSuffix: "-nodeport"
+  port: 8006
+  targetPortName: http
+  nodePort: 30080
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

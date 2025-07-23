@@ -1,0 +1,64 @@
+spring:
+  application:
+    name: DockerPoc
+  output:
+    ansi:
+      enabled: always
+  datasource:
+    url: jdbc:h2:mem:employeedb
+    driverClassName: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    defer-datasource-initialization: true
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  sql:
+    init:
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
+      mode: always
+
+server:
+  port: 8005
+  ssl:
+    enabled: false
+  tomcat:
+    max-connections: 50
+    connection-timeout: 10s
+    threads:
+      max: 50
+  servlet:
+    context-path: /dockerpoc
+
+logging:
+  level:
+    root: info
+
+javamelody:
+  # Initialization parameters for JavaMelody
+  # See: https://github.com/javamelody/javamelody/wiki/UserGuide#6-optional-parameters
+  init-parameters:
+    # log http requests
+    log: true
+
+    # to exclude images, css, fonts and js urls from the monitoring:
+    #url-exclude-pattern: (/webjars/.*|/css/.*|/images/.*|/fonts/.*|/js/.*)
+
+    # to add basic auth:
+    #authorized-users: admin:pwd
+
+    # to change the default storage directory:
+    #storage-directory: /tmp/javamelody
+
+    # to change the default "/monitoring" path
+    #monitoring-path: /admin/performance

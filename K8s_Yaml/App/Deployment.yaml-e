@@ -1,0 +1,175 @@
+###########################
+# 1 ─── Deployment
+###########################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dockerpoc-1
+  labels:
+    app.kubernetes.io/name: dockerpoc-1
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dockerpoc-1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dockerpoc-1
+    spec:
+      containers:
+        - name: app
+          image: vishal210893/dockerpoc-1:20250520-113707
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8005
+              name: http
+            - containerPort: 5005
+              name: debug
+          env:
+            - name: env_value
+              valueFrom:
+                secretKeyRef:
+                  name: env-secret
+                  key: SECRET-VALUE
+          volumeMounts:
+            - name: filestorage
+              mountPath: /opt/file
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "1"
+            limits:
+              memory: "2Gi"
+              cpu: "3"
+      volumes:
+        - name: filestorage
+          persistentVolumeClaim:
+            claimName: file-pvc
+---
+
+###########################
+# 2 ─── Service (ClusterIP)
+###########################
+apiVersion: v1
+kind: Service
+metadata:
+  name: dockerpoc-1
+  labels:
+    app.kubernetes.io/name: dockerpoc-1
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dockerpoc-1
+  ports:
+    - name: http
+      port: 8008
+      targetPort: http
+---
+
+###########################
+# 3 ─── Ingress
+###########################
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dockerpoc-1
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /ingress/(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: dockerpoc-1
+                port:
+                  name: http
+          - path: /cloud/(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: cloudtest
+                port:
+                  number: 9015
+---
+
+###########################
+# 4 ─── StorageClass
+###########################
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: dockerpoc-sc
+provisioner: k8s.io/minikube-hostpath        # change for cloud CSI driver
+parameters:
+  type: pd-ssd
+---
+
+###########################
+# 5 ─── PersistentVolumeClaim
+###########################
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: file-pvc
+  labels:
+    app.kubernetes.io/name: dockerpoc-1
+spec:
+  accessModes: [ ReadWriteMany ]
+  storageClassName: dockerpoc-sc
+  resources:
+    requests:
+      storage: 1Gi
+---
+
+###########################
+# 5 ─── PV
+###########################
+ apiVersion: v1
+ kind: PersistentVolume
+ metadata:
+   name: pv-volume
+ spec:
+   storageClassName: dockerpoc-sc
+   capacity:
+     storage: 1Gi
+   accessModes: [ReadWriteMany]
+   hostPath:
+     path: /Users/viskumar/mountpath
+   persistentVolumeReclaimPolicy: Retain
+---
+
+###########################
+# 6 ─── Secret
+###########################
+apiVersion: v1
+kind: Secret
+metadata:
+  name: env-secret
+type: generic
+stringData:
+  SECRET-VALUE: "minikube node from secret"
+---
+
+###########################
+# 7 ─── (Optional) NodePort Service
+###########################
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: dockerpoc-1-nodeport
+# spec:
+#   type: NodePort
+#   selector:
+#     app.kubernetes.io/name: dockerpoc-1
+#   ports:
+#     - name: http
+#       port: 8006
+#       targetPort: http
+#       nodePort: 30080
