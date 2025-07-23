@@ -1,41 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "dockerpoc-app.fullname" . }}
+  name: {{ .Values.service.name }}
   labels:
-    {{- include "dockerpoc-app.labels" . | nindent 4 }}
-  {{- with .Values.service.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    app.kubernetes.io/name: {{ include "dockerpoc-app.name" . }}
 spec:
   type: {{ .Values.service.type }}
-  ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.targetPort }}
-      protocol: TCP
-      name: http
-      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
-      nodePort: {{ .Values.service.nodePort }}
-      {{- end }}
   selector:
-    {{- include "dockerpoc-app.selectorLabels" . | nindent 4 }}
-  {{- if eq .Values.service.type "LoadBalancer" }}
-  {{- with .Values.service.loadBalancerIP }}
-  loadBalancerIP: {{ . }}
-  {{- end }}
-  {{- with .Values.service.loadBalancerSourceRanges }}
-  loadBalancerSourceRanges:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-  {{- end }}
-  {{- if eq .Values.service.type "ExternalName" }}
-  externalName: {{ .Values.service.externalName }}
-  {{- end }}
-  {{- with .Values.service.sessionAffinity }}
-  sessionAffinity: {{ . }}
-  {{- end }}
-  {{- with .Values.service.sessionAffinityConfig }}
-  sessionAffinityConfig:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    app.kubernetes.io/name: {{ include "dockerpoc-app.name" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPortName }}

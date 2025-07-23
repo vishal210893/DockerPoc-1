@@ -76,16 +76,10 @@ topologySpreadConstraints: []
 # Networking
 # -----------------------------------------------------------------------------
 service:
+  name: dockerpoc-1
   type: ClusterIP
-  port: 8080
-  targetPort: http
-  annotations: {}
-  labels: {}
-  # nodePort: 30080                    # Only if type: NodePort
-  # loadBalancerIP: ""                 # If type: LoadBalancer
-  # loadBalancerSourceRanges: []
-  # sessionAffinity: None
-  # sessionAffinityConfig: {}
+  port: 8008
+  targetPortName: "http"
 
 containerPorts:
   http: 8080
@@ -98,7 +92,6 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: "/$1"
-  hosts: []    # we're using hostless rules
   rules:
     - paths:
         - path: /ingress/(.*)
