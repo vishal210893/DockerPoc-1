@@ -118,11 +118,27 @@ docker run -p 8005:8005 -p 5005:5005 dockerpoc-1
    kubectl apply -f K8s_Yaml/
    ```
 
+
 2. Verify deployment:
    ```bash
    kubectl get pods
    kubectl get services
    ```
+
+## 📦 Helm Chart
+
+Current Helm Chart Version: 0.2.0
+
+Add the repository:
+```bash
+helm repo add dockerpoc https://vishal210893.github.io/DockerPoc-1
+helm repo update
+```
+
+Install the chart:
+```bash
+helm install dockerpoc dockerpoc/dockerpoc-chart --version 0.2.0
+```
 
 ## 🔄 CI/CD Pipeline
 
