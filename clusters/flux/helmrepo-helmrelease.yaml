@@ -31,7 +31,7 @@ spec:
   chart:
     spec:
       # Name of the chart to deploy from the repository
-      chart: dockerpoc-chart
+      chart: dockerpoc-app
       # Specific version of the chart to deploy
       version: 5.0.1
       # Reference to the source repository containing the chart
