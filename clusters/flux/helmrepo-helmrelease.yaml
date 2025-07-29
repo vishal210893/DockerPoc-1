@@ -33,7 +33,7 @@ spec:
       # Name of the chart to deploy from the repository
       chart: dockerpoc-chart
       # Specific version of the chart to deploy
-      version: 0.6.0
+      version: 5.0.1
       # Reference to the source repository containing the chart
       sourceRef:
         # Type of source (HelmRepository in this case)
