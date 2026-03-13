@@ -5,17 +5,27 @@ Udemy Transcript Downloader
 Downloads transcripts chapter-wise from a Udemy course using Udemy's internal API,
 then generates clean HTML documentation.
 
-HOW TO GET YOUR ACCESS TOKEN:
-1. Log into Udemy in your browser (Chrome/Firefox)
-2. Open DevTools (F12) -> Application tab -> Cookies -> https://www.udemy.com
-3. Find the cookie named 'access_token' and copy its value
-   OR
-   Open DevTools -> Network tab -> refresh page -> find any request to
-   'udemy.com/api-2.0/' -> look at Request Headers -> find 'Authorization: Bearer <token>'
+HOW TO GET YOUR CREDENTIALS (Cookie method - most reliable):
+1. Log into Udemy in Chrome/Firefox
+2. Open DevTools (F12) -> Network tab
+3. Refresh the course page
+4. Click any request to 'www.udemy.com/api-2.0/...'
+5. Scroll to 'Request Headers' -> find the 'cookie:' header
+6. Copy the ENTIRE cookie string value
 
-USAGE:
+Then extract two values from the cookie string:
+  - access_token=...  (the value between access_token=" and the next ;)
+  - csrftoken=...     (the value after csrftoken=)
+
+USAGE (recommended - full cookie string):
     python3 udemy_transcript_downloader.py \
-        --access-token "YOUR_ACCESS_TOKEN_HERE" \
+        --cookie "PASTE_FULL_COOKIE_STRING_HERE" \
+        --course-url "https://www.udemy.com/course/claudecode/" \
+        --output-dir "./udemy_docs"
+
+USAGE (access token only):
+    python3 udemy_transcript_downloader.py \
+        --access-token "YOUR_ACCESS_TOKEN_VALUE" \
         --course-url "https://www.udemy.com/course/claudecode/" \
         --output-dir "./udemy_docs"
 """
@@ -42,18 +52,40 @@ except ImportError:
 BASE_URL = "https://www.udemy.com/api-2.0"
 
 
-def get_headers(access_token: str) -> dict:
-    return {
-        "Authorization": f"Bearer {access_token}",
+def get_headers(access_token: str, cookie_str: str = "", csrf_token: str = "") -> dict:
+    headers = {
         "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json",
-        "X-Udemy-Cache-Course-Landing-Page": "False",
+        "Accept-Language": "en-US",
         "Referer": "https://www.udemy.com/",
+        "X-Requested-With": "XMLHttpRequest",
         "User-Agent": (
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
         ),
     }
+    if cookie_str:
+        # Cookie-based auth (most reliable - mirrors exactly what the browser sends)
+        headers["Cookie"] = cookie_str
+        if csrf_token:
+            headers["X-CSRFToken"] = csrf_token
+    elif access_token:
+        # Bearer token fallback
+        headers["Authorization"] = f"Bearer {access_token}"
+    return headers
+
+
+def parse_cookie_string(cookie_str: str) -> tuple[str, str]:
+    """Extract access_token and csrftoken from a raw cookie header string."""
+    access_token = ""
+    csrf_token = ""
+    for part in cookie_str.split(";"):
+        part = part.strip()
+        if part.startswith("access_token="):
+            # Strip surrounding quotes if present
+            access_token = part[len("access_token="):].strip('"')
+        elif part.startswith("csrftoken="):
+            csrf_token = part[len("csrftoken="):]
+    return access_token, csrf_token
 
 
 def extract_course_slug(course_url: str) -> str:
@@ -549,13 +581,23 @@ def build_html(course_title: str, chapters: list) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Download Udemy transcripts → HTML docs")
-    parser.add_argument("--access-token", required=True, help="Udemy access_token from browser cookie")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--cookie", help="Full cookie string copied from browser DevTools Request Headers")
+    group.add_argument("--access-token", help="Udemy access_token value only (fallback if full cookie unavailable)")
     parser.add_argument("--course-url", required=True, help="Udemy course URL, e.g. https://www.udemy.com/course/claudecode/")
     parser.add_argument("--output-dir", default="./udemy_docs", help="Directory to save output (default: ./udemy_docs)")
     parser.add_argument("--lang", default="en", help="Caption language code (default: en)")
     args = parser.parse_args()
 
-    headers = get_headers(args.access_token)
+    if args.cookie:
+        access_token, csrf_token = parse_cookie_string(args.cookie)
+        if not access_token:
+            print("WARNING: Could not find 'access_token' in the cookie string. Proceeding anyway.")
+        headers = get_headers(access_token="", cookie_str=args.cookie, csrf_token=csrf_token)
+        print(f"[AUTH] Using cookie-based authentication (access_token found: {'yes' if access_token else 'no'})")
+    else:
+        headers = get_headers(access_token=args.access_token)
+        print(f"[AUTH] Using Bearer token authentication")
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
