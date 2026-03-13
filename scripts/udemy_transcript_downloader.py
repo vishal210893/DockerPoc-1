@@ -114,9 +114,9 @@ def get_curriculum(course_id: int, headers: dict) -> list:
         url = (
             f"{BASE_URL}/courses/{course_id}/subscriber-curriculum-items/"
             f"?page={page}&page_size={page_size}"
-            f"&fields[lecture]=title,asset,sort_order,object_index"
+            f"&fields[lecture]=title,asset,sort_order,object_index,id"
             f"&fields[chapter]=title,object_index,sort_order"
-            f"&fields[asset]=asset_type,captions,title,length"
+            f"&fields[asset]=asset_type,captions,title,length,id"
             f"&fields[quiz]=title,object_index,sort_order"
         )
         resp = requests.get(url, headers=headers, timeout=30)
@@ -238,8 +238,11 @@ def organise_chapters(curriculum: list) -> list:
                     {
                         "title": item.get("title", "Untitled Lecture"),
                         "index": item.get("object_index", 0),
+                        "lecture_id": item.get("id"),
                         "asset_id": asset.get("id"),
                         "asset_type": asset_type,
+                        # captions are already embedded in the curriculum response
+                        "captions": asset.get("captions", []),
                     }
                 )
 
@@ -633,8 +636,14 @@ def main():
             transcript_text = ""
 
             if asset_id:
-                captions = get_captions_for_asset(asset_id, headers)
-                # Prefer requested language, fall back to first available
+                # Step 1: use captions already embedded in curriculum response
+                captions = lec.get("captions", [])
+
+                # Step 2: if none embedded, fall back to separate API call
+                if not captions:
+                    captions = get_captions_for_asset(asset_id, headers)
+
+                # Pick preferred language, fall back to first available
                 caption = next(
                     (c for c in captions if c.get("locale_id", "").startswith(args.lang)),
                     captions[0] if captions else None,
@@ -646,9 +655,9 @@ def main():
                         vtt_content = download_vtt(vtt_url, headers)
                         transcript_text = vtt_to_text(vtt_content)
                     else:
-                        print(f"    - {lec['index']:3}. {lec_title[:60]} (no VTT URL)")
+                        print(f"    - {lec['index']:3}. {lec_title[:60]} (no VTT URL in caption)")
                 else:
-                    print(f"    - {lec['index']:3}. {lec_title[:60]} (no captions)")
+                    print(f"    ✗ {lec['index']:3}. {lec_title[:60]} (no captions found)")
                 time.sleep(0.3)
 
             ch_data["lectures"].append(
