@@ -1,0 +1,30 @@
+## This is a HelmRelease custom resource for FluxCD, which automates Helm chart deployments.
+## apiVersion specifies the CRD version for HelmRelease.
+#apiVersion: helm.toolkit.fluxcd.io/v2beta1
+## kind defines the resource type as HelmRelease.
+#kind: HelmRelease
+#metadata:
+#  # name is the HelmRelease name, used for identification in the cluster.
+#  name: dockerpoc
+#  # namespace is where this HelmRelease will be created and managed.
+#  namespace: default
+#spec:
+#  # interval sets how often Flux will reconcile this release (check for changes).
+#  interval: 1m
+#  chart:
+#    spec:
+#      # chart points to the local chart directory to be deployed.
+#      chart: ./infra/helm/dockerpoc-app
+#      # sourceRef tells Flux where to find the chart source (GitRepository resource).
+#      sourceRef:
+#        kind: GitRepository
+#        name: flux-system
+#        namespace: flux-system
+#      # interval for checking for chart updates from the source repository.
+#      interval: 30s
+#  values:
+#    deployment:
+#      # replicas sets the number of pod replicas for the deployment defined in the chart.
+#      replicas: 3
+#
+#

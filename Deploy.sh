@@ -19,8 +19,8 @@ echo
 # ── config ────────────────────────────────────────────────────────────────────
 DOCKER_IMAGE_BASE="vishal210893/dockerpoc-1"
 
-K8S_APP_MANIFEST_FILE="${SCRIPT_DIR}/K8s_Yaml/App/Deployment.yaml"
-K8S_INGRESS_MANIFEST_PATH="${SCRIPT_DIR}/K8s_Yaml/Ingress"
+K8S_APP_MANIFEST_FILE="${SCRIPT_DIR}/infra/kubernetes/App/Deployment.yaml"
+K8S_INGRESS_MANIFEST_PATH="${SCRIPT_DIR}/infra/kubernetes/Ingress"
 
 INGRESS_NAMESPACE="ingress-nginx"
 INGRESS_SERVICE_NAME="ingress-nginx-controller"
@@ -46,7 +46,7 @@ echo
 # ── optional build (1-3) ──────────────────────────────────────────────────────
 if $PERFORM_BUILD; then
   [[ -f "$SCRIPT_DIR/pom.xml" ]] || { echo "ERROR: pom.xml missing"; exit 1; }
-  [[ -f "$SCRIPT_DIR/Dockerfile" ]] || { echo "ERROR: Dockerfile missing"; exit 1; }
+  [[ -f "$SCRIPT_DIR/infra/docker/Dockerfile" ]] || { echo "ERROR: Dockerfile missing"; exit 1; }
 
   # 1 ▒▒▒ Maven build ▒▒▒
   log "========== Step 1: Maven build =========="
@@ -62,7 +62,7 @@ if $PERFORM_BUILD; then
   IMAGE="${DOCKER_IMAGE_BASE}:${TIMESTAMP}"
   log "Building image → $IMAGE"
   echo
-  docker build -t "$IMAGE" "$SCRIPT_DIR"
+  docker build -f "${SCRIPT_DIR}/infra/docker/Dockerfile" -t "$IMAGE" "$SCRIPT_DIR"
   echo
   docker push "$IMAGE"
   log "✓ Image pushed"

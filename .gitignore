@@ -1,35 +1,37 @@
-HELP.md
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**
-!**/src/test/**
+# Build output
 target/
-env/
+build/
+.gradle
+
+# Logs
 logs/
 
-### STS ###
-.apt_generated
+# OS / IDE-local
+.DS_Store
+Thumbs.db
+.vscode/
 .classpath
-.factorypath
 .project
 .settings
 .springBeans
 .sts4-cache
-.gradle
+.apt_generated
+.factorypath
 
-
-### IntelliJ IDEA ###
-*.iws
+# Loose IntelliJ module files (.idea/ itself stays tracked)
 *.iml
+*.iws
 *.ipr
 
-### NetBeans ###
+# Node
+node_modules/
+
+# Misc
+HELP.md
+env/
+/bin/
 /nbproject/private/
 /nbbuild/
-/dist/
 /nbdist/
 /.nb-gradle/
-build/
-
-### VS Code ###
-.vscode/
-/bin/
+/dist/
