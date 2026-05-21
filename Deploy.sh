@@ -35,6 +35,7 @@ DOCKER_IMAGE_BASE="vishal210893/dockerpoc-1"
 K8S_APP_MANIFEST_FILE="${SCRIPT_DIR}/infra/kubernetes/App/Deployment.yaml"
 K8S_INGRESS_MANIFEST_PATH="${SCRIPT_DIR}/infra/kubernetes/Ingress"
 HELM_VALUES_FILE="${SCRIPT_DIR}/infra/helm/dockerpoc-app/values.yaml"
+HELM_CHART_FILE="${SCRIPT_DIR}/infra/helm/dockerpoc-app/Chart.yaml"
 
 INGRESS_NAMESPACE="ingress-nginx"
 INGRESS_SERVICE_NAME="ingress-nginx-controller"
@@ -71,6 +72,7 @@ echo
 [[ -f "$K8S_APP_MANIFEST_FILE" ]]     || { echo "ERROR: $K8S_APP_MANIFEST_FILE not found"; exit 1; }
 [[ -d "$K8S_INGRESS_MANIFEST_PATH" ]] || { echo "ERROR: $K8S_INGRESS_MANIFEST_PATH not found"; exit 1; }
 [[ -f "$HELM_VALUES_FILE" ]]          || { echo "ERROR: $HELM_VALUES_FILE not found"; exit 1; }
+[[ -f "$HELM_CHART_FILE" ]]           || { echo "ERROR: $HELM_CHART_FILE not found"; exit 1; }
 
 # ── optional build (1-3) ──────────────────────────────────────────────────────
 if $PERFORM_BUILD; then
@@ -111,6 +113,28 @@ if $PERFORM_BUILD; then
     log "✓ Helm values.yaml tag updated to ${TIMESTAMP}"
   else
     log "⚠  Skipped: values.yaml has ${TAG_COUNT} 'tag:' lines (expected exactly 1) — update manually if needed"
+  fi
+  echo
+
+  # 3c ▒▒▒ Bump Helm chart version (patch increment) ▒▒▒
+  log "========== Step 3c: Bump Helm chart version =========="
+  VERSION_LINE_COUNT=$(grep -cE '^version:' "$HELM_CHART_FILE" || true)
+  if [[ "$VERSION_LINE_COUNT" -ne 1 ]]; then
+    log "⚠  Skipped: Chart.yaml has ${VERSION_LINE_COUNT} 'version:' lines (expected exactly 1)"
+  else
+    CURRENT_VER=$(grep -E '^version:' "$HELM_CHART_FILE" | head -1 | awk '{print $2}' | tr -d '"')
+    if [[ "$CURRENT_VER" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+      MAJOR="${BASH_REMATCH[1]}"
+      MINOR="${BASH_REMATCH[2]}"
+      PATCH="${BASH_REMATCH[3]}"
+      NEW_VER="${MAJOR}.${MINOR}.$((PATCH + 1))"
+      # Match the exact current version literally (dots escaped) and replace
+      ESCAPED_CUR="${CURRENT_VER//./\\.}"
+      sed_inplace -E "s|^(version:[[:space:]]+)${ESCAPED_CUR}([[:space:]]*)$|\\1${NEW_VER}\\2|" "$HELM_CHART_FILE"
+      log "✓ Chart version bumped: ${CURRENT_VER} → ${NEW_VER}"
+    else
+      log "⚠  Skipped: chart version '${CURRENT_VER}' is not a simple MAJOR.MINOR.PATCH — bump manually"
+    fi
   fi
   echo
 fi

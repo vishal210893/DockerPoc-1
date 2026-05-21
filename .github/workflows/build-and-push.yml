@@ -208,18 +208,79 @@ jobs:
           fi
 
           echo "Image value in $DEPLOYMENT_FILE updated successfully to: $ACTUAL_IMAGE"
-      - name: Commit and Push Deployment Changes
+      - name: Patch Helm chart values.yaml tag
+        run: |
+          HELM_VALUES_FILE="infra/helm/dockerpoc-app/values.yaml"
+
+          if [ ! -f "$HELM_VALUES_FILE" ]; then
+            echo "ERROR: $HELM_VALUES_FILE not found"
+            exit 1
+          fi
+
+          TAG_COUNT=$(grep -cE '^[[:space:]]*tag:[[:space:]]*"' "$HELM_VALUES_FILE" || true)
+          if [[ "$TAG_COUNT" -ne 1 ]]; then
+            echo "WARN: $HELM_VALUES_FILE has $TAG_COUNT 'tag:' lines (expected exactly 1) — skipping"
+            exit 0
+          fi
+
+          echo "Current tag line:"
+          grep -n 'tag:' "$HELM_VALUES_FILE"
+
+          # GNU sed in CI handles -i -E cleanly
+          sed -i -E "s|^([[:space:]]*tag:[[:space:]]*)\".*\"|\1\"${{ env.IMAGE_TAG }}\"|" "$HELM_VALUES_FILE"
+
+          echo "Updated tag line:"
+          grep -n 'tag:' "$HELM_VALUES_FILE"
+      - name: Bump Helm Chart.yaml version (patch)
+        run: |
+          HELM_CHART_FILE="infra/helm/dockerpoc-app/Chart.yaml"
+
+          if [ ! -f "$HELM_CHART_FILE" ]; then
+            echo "ERROR: $HELM_CHART_FILE not found"
+            exit 1
+          fi
+
+          VERSION_LINE_COUNT=$(grep -cE '^version:' "$HELM_CHART_FILE" || true)
+          if [[ "$VERSION_LINE_COUNT" -ne 1 ]]; then
+            echo "WARN: $HELM_CHART_FILE has $VERSION_LINE_COUNT 'version:' lines (expected 1) — skipping"
+            exit 0
+          fi
+
+          CURRENT_VER=$(grep -E '^version:' "$HELM_CHART_FILE" | head -1 | awk '{print $2}' | tr -d '"')
+          if [[ "$CURRENT_VER" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            MAJOR="${BASH_REMATCH[1]}"
+            MINOR="${BASH_REMATCH[2]}"
+            PATCH="${BASH_REMATCH[3]}"
+            NEW_VER="${MAJOR}.${MINOR}.$((PATCH + 1))"
+            ESCAPED_CUR="${CURRENT_VER//./\\.}"
+            sed -i -E "s|^(version:[[:space:]]+)${ESCAPED_CUR}([[:space:]]*)$|\1${NEW_VER}\2|" "$HELM_CHART_FILE"
+            echo "Chart version bumped: ${CURRENT_VER} → ${NEW_VER}"
+            echo "CHART_VERSION=${NEW_VER}" >> "$GITHUB_ENV"
+          else
+            echo "WARN: chart version '${CURRENT_VER}' is not a simple MAJOR.MINOR.PATCH — skipping bump"
+          fi
+      - name: Commit and Push Manifest + Chart Changes
         run: |
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions-bot@github.com"
 
-          if [[ -z $(git status --porcelain infra/kubernetes/App/Deployment.yaml) ]]; then
-            echo "No changes to commit in infra/kubernetes/App/Deployment.yaml."
+          FILES_TO_COMMIT=()
+          for f in \
+            infra/kubernetes/App/Deployment.yaml \
+            infra/helm/dockerpoc-app/values.yaml \
+            infra/helm/dockerpoc-app/Chart.yaml; do
+            if [[ -n $(git status --porcelain "$f") ]]; then
+              FILES_TO_COMMIT+=("$f")
+            fi
+          done
+
+          if [[ ${#FILES_TO_COMMIT[@]} -eq 0 ]]; then
+            echo "No deployment or chart changes to commit."
           else
-            git add infra/kubernetes/App/Deployment.yaml
-            git commit -m "chore(deploy): Update Kubernetes deployment image to ${{ env.FULL_DOCKER_IMAGE }}"
+            git add "${FILES_TO_COMMIT[@]}"
+            git commit -m "chore(deploy): bump image to ${{ env.FULL_DOCKER_IMAGE }} (chart ${CHART_VERSION:-unchanged})"
             git push origin HEAD:${{ github.ref_name }}
-            echo "Committed and pushed deployment update."
+            echo "Committed: ${FILES_TO_COMMIT[*]}"
           fi
       - name: Run System & Git Info Action
         id: deploy_info_action
