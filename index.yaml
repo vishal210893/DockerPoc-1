@@ -10,6 +10,35 @@ entries:
       licenses: Apache-2.0
     apiVersion: v2
     appVersion: 2025.07.23
+    created: "2026-05-21T10:07:46.868151927Z"
+    description: Production-grade Helm chart for DockerPoc application
+    digest: 1a90f6994f089e1d13fcf32592b3ee85e058ec7cfce37f7168c238203a1404b7
+    home: https://github.com/vishal210893/dockerpoc
+    keywords:
+    - dockerpoc
+    - web-application
+    - microservice
+    kubeVersion: '>=1.23.0-0'
+    maintainers:
+    - email: vishal210893@gmail.com
+      name: Vishal Kumar
+      url: https://github.com/vishal210893
+    name: dockerpoc-app
+    sources:
+    - https://github.com/vishal210893/dockerpoc
+    type: application
+    urls:
+    - https://github.com/vishal210893/DockerPoc-1/releases/download/dockerpoc-app-5.0.2/dockerpoc-app-5.0.2.tgz
+    version: 5.0.2
+  - annotations:
+      artifacthub.io/changes: |
+        - feat: add values.schema.json and new operational templates (HPA, PDB, etc.)
+        - chore: enforce stricter labels & security contexts
+        - docs: extensive in-template comments
+      category: Application
+      licenses: Apache-2.0
+    apiVersion: v2
+    appVersion: 2025.07.23
     created: "2025-07-23T19:13:17.06580772Z"
     description: Production-grade Helm chart for DockerPoc application
     digest: 87428ca5ed926149c9591fb72a102b996df126153e4bdb588339c265cfcb01ac
@@ -154,4 +183,4 @@ entries:
     urls:
     - https://github.com/vishal210893/DockerPoc-1/releases/download/dockerpoc-chart-0.1.0/dockerpoc-chart-0.1.0.tgz
     version: 0.1.0
-generated: "2025-07-23T19:13:17.065834921Z"
+generated: "2026-05-21T10:07:46.868180561Z"
