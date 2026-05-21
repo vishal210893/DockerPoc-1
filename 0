@@ -16,7 +16,7 @@ deployment:
   container:
     name: "app"
     image: "vishal210893/dockerpoc-1"
-    tag: "20260521-145941"
+    tag: "20260521-093000-VERIFY"
     imagePullPolicy: "IfNotPresent"
     ports:
       http: 8005

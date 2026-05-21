@@ -27,46 +27,47 @@
         </encoder>
     </appender>
 
-    <!-- Rolling File Appender: Outputs logs to a file, rolling daily and by size -->
-    <!-- For file logs, method and line number can also be added if needed, but without color -->
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/dockerpoc.log</file> <!-- Base log file name -->
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <!-- Daily rollover plus limiting size of each log file -->
-            <fileNamePattern>logs/dockerpoc-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <!-- Keep 30 days of history -->
-            <maxHistory>30</maxHistory>
-            <!-- Max file size is 100MB -->
-            <maxFileSize>100MB</maxFileSize>
-            <!-- Total size of archived files -->
-            <totalSizeCap>1GB</totalSizeCap>
-        </rollingPolicy>
-        <encoder>
-            <!-- Pattern for file logs (no color). Add %M:%L if desired for file logs too. -->
-            <!-- Example with method and line for file:
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger %M:%L : %msg%n%throwable</pattern>
-            -->
-            <pattern>
-                %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} : %msg%n%throwable
-            </pattern>
-        </encoder>
-    </appender>
+    <!-- Rolling File Appender: only defined under the 'prod' Spring profile.
+         Non-prod runs do not create logs/ or open a rolling file handle. -->
+    <springProfile name="prod">
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/dockerpoc.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <!-- Daily rollover plus limiting size of each log file -->
+                <fileNamePattern>logs/dockerpoc-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+                <!-- Keep 30 days of history -->
+                <maxHistory>30</maxHistory>
+                <!-- Max file size is 100MB -->
+                <maxFileSize>100MB</maxFileSize>
+                <!-- Total size of archived files -->
+                <totalSizeCap>1GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder>
+                <pattern>
+                    %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} : %msg%n%throwable
+                </pattern>
+            </encoder>
+        </appender>
+    </springProfile>
 
     <!-- =================================================================== -->
     <!--                               Loggers                               -->
     <!-- =================================================================== -->
 
-    <!-- Root Logger: Default level and appenders for all loggers -->
+    <!-- Root Logger: CONSOLE always; FILE only under 'prod' -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
+        <springProfile name="prod">
+            <appender-ref ref="FILE"/>
+        </springProfile>
     </root>
 
-    <!-- Specific Logger for your application package -->
-    <!-- Set to DEBUG to see more detailed logs from your code, including the filter -->
+    <!-- Application package logger: CONSOLE always; FILE only under 'prod' -->
     <logger name="com.learning.docker" level="DEBUG" additivity="false">
         <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
+        <springProfile name="prod">
+            <appender-ref ref="FILE"/>
+        </springProfile>
     </logger>
 
     <!-- Example: Reduce verbosity of chatty Spring/Hibernate logs if needed -->
