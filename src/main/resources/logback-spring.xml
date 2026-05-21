@@ -5,21 +5,20 @@
     <!--                               Appenders                             -->
     <!-- =================================================================== -->
 
-    <!-- Console Appender: Outputs logs to the console with color and detailed formatting -->
+    <!-- Console Appender: always defined; pattern includes colour codes for terminal output -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <!--
                 Pattern explanation:
-                %gray(%d{yyyy-MM-dd HH:mm:ss.SSS}) : Timestamp in gray color
-                %highlight(%-5level)               : Log level (e.g., INFO, DEBUG), left-aligned in 5 chars, highlighted with color
-                %magenta([%thread])                : Thread name in magenta color, enclosed in brackets
-                %blue(%logger)                     : Full Logger name (class name) in blue color
-                %yellow(%M:%L)                     : Method name (%M) and Line number (%L) in yellow color
-                %msg%n                             : The log message followed by a newline
-                %throwable                         : Prints the stack trace if an exception is logged
+                %gray(%d{yyyy-MM-dd HH:mm:ss.SSS}) : Timestamp in gray
+                %highlight(%-5level)               : Log level, coloured by severity
+                %magenta([%thread])                : Thread name in magenta brackets
+                %blue(%logger)                     : Logger (class) name in blue
+                %yellow(%M:%L)                     : Method and line number in yellow
+                %msg%n                             : The log message and newline
+                %throwable                         : Stack trace when present
 
-                WARNING: Using %M (method) and %L (line number) incurs a significant performance cost
-                         and is generally not recommended for production environments.
+                WARNING: %M / %L are expensive; avoid in high-volume production loggers.
             -->
             <pattern>
                 [%boldGreen(%d{yyyy-MM-dd HH:mm:ss.SSS})] %highlight(%-5level) %magenta([%thread]) %cyan(%logger) [%boldYellow(%M:%L)] : %msg%n%throwable
@@ -27,19 +26,14 @@
         </encoder>
     </appender>
 
-    <!-- Rolling File Appender: only defined under the 'prod' Spring profile.
-         Non-prod runs do not create logs/ or open a rolling file handle. -->
+    <!-- Rolling File Appender: only defined under the 'prod' profile. -->
     <springProfile name="prod">
         <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>logs/dockerpoc.log</file>
             <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <!-- Daily rollover plus limiting size of each log file -->
                 <fileNamePattern>logs/dockerpoc-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-                <!-- Keep 30 days of history -->
                 <maxHistory>30</maxHistory>
-                <!-- Max file size is 100MB -->
                 <maxFileSize>100MB</maxFileSize>
-                <!-- Total size of archived files -->
                 <totalSizeCap>1GB</totalSizeCap>
             </rollingPolicy>
             <encoder>
@@ -53,25 +47,34 @@
     <!-- =================================================================== -->
     <!--                               Loggers                               -->
     <!-- =================================================================== -->
-
-    <!-- Root Logger: CONSOLE always; FILE only under 'prod' -->
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-        <springProfile name="prod">
-            <appender-ref ref="FILE"/>
-        </springProfile>
-    </root>
-
-    <!-- Application package logger: CONSOLE always; FILE only under 'prod' -->
-    <logger name="com.learning.docker" level="DEBUG" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-        <springProfile name="prod">
-            <appender-ref ref="FILE"/>
-        </springProfile>
-    </logger>
-
-    <!-- Example: Reduce verbosity of chatty Spring/Hibernate logs if needed -->
     <!--
+        Spring Boot requires <springProfile> to wrap whole <root>/<logger> elements,
+        not be nested inside them. So we duplicate the blocks per profile.
+    -->
+
+    <!-- Non-prod (dev, default, test, …): CONSOLE only -->
+    <springProfile name="dev">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="com.learning.docker" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+    </springProfile>
+
+    <!-- prod: CONSOLE + rolling FILE -->
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+        <logger name="com.learning.docker" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </logger>
+    </springProfile>
+
+    <!-- Example: trim chatty third-party loggers
     <logger name="org.springframework" level="WARN"/>
     <logger name="org.hibernate" level="WARN"/>
     <logger name="org.apache.catalina" level="WARN"/>
